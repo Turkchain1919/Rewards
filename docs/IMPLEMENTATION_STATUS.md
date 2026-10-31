@@ -22,3 +22,6 @@ Live social authorization remains awaiting OWNER credentials, provider permissio
 See SOCIAL_API_CONFIGURATION.md and PORTABLE_CONFIGURATION.md. Exact release tests/deployment status are recorded by the release gate and manifest; this candidate is not successful until those pass.
 
 0.4.0 was successfully deployed and GitHub synchronized with preserved production records.0.4.1 adds dynamic deployment-origin robots/sitemap generation and a build-artifact regression guard. No provider keys, mainnet deployment or payouts were enabled.
+
+## Hero visual management release candidate0.4.2
+OWNER-only homepage GIF upload/preview/publish/replace/enable/disable/remove implemented in TEST. GIF bytes and metadata persist in PostgreSQL; bounded content validation, audited operations, public current-image response, original design fallback and reduced-motion fallback are included. See HERO_VISUAL.md. Desktop/mobile browser persistence test, full test/build/security/release gates and production rollout pending.

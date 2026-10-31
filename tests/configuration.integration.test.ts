@@ -9,6 +9,7 @@ test('real central configuration, single-chain lock, social targets and credenti
  const db=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL,max:4})}),id=randomBytes(8).toString('hex'),token=randomBytes(32).toString('hex'),secret='fixture-secret-'+id;
  const admin=await db.admin.create({data:{email:'config-'+id+'@example.invalid',passwordHash:'unusable-fixture',role:'OWNER'}});
  await db.authSession.create({data:{id:digest(token),adminId:admin.id,mfaVerified:true,expiresAt:new Date(Date.now()+120000)}});
+ const previousHero=await db.heroVisual.findUnique({where:{id:'homepage'}});
  const previousSetting=await db.integrationSetting.findUnique({where:{platform:'X'}}),previousCredential=await db.credential.findUnique({where:{scope_ownerId_kind:{scope:'SOCIAL_PLATFORM',ownerId:'X',kind:'OAUTH_CONFIG'}}});
  const prefix='http://127.0.0.1:'+process.env.API_PORT,accounts:string[]=[],campaigns:string[]=[],networks:string[]=[];
  async function api(path:string,method='GET',body?:unknown){
@@ -16,6 +17,21 @@ test('real central configuration, single-chain lock, social targets and credenti
   const text=await r.text();return {status:r.status,text,data:r.headers.get('content-type')?.includes('application/json')?JSON.parse(text):null};
  }
  try{
+  const staticGif=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7','base64');const animatedGif=staticGif;
+  const publicMeta=await api('hero');assert.equal(publicMeta.status,200);assert.equal(publicMeta.data.url,null);
+  const denied=await fetch(prefix+'/api/admin/system/hero',{method:'POST',headers:{Origin:process.env.APP_URL!,'Content-Type':'image/gif'},body:animatedGif});assert.equal(denied.status,401);
+  const bad=await fetch(prefix+'/api/admin/system/hero',{method:'POST',headers:{Origin:process.env.APP_URL!,Cookie:'rewards_test_admin='+token,'Content-Type':'image/gif'},body:Buffer.from('<svg/>')});assert.equal(bad.status,400);
+  const uploaded=await fetch(prefix+'/api/admin/system/hero',{method:'POST',headers:{Origin:process.env.APP_URL!,Cookie:'rewards_test_admin='+token,'Content-Type':'image/gif'},body:animatedGif});assert.equal(uploaded.status,201);
+  const hero=await uploaded.json() as {sha256:string;width:number;height:number;size:number;frameCount:number;enabled:boolean;published:boolean};
+  assert.equal(hero.width,1);assert.equal(hero.height,1);assert.equal(hero.frameCount,1);assert.equal(hero.enabled,true);assert.equal(hero.published,true);
+  const originalFilename=(await db.heroVisual.findUniqueOrThrow({where:{id:'homepage'}})).filename;const replaced=await fetch(prefix+'/api/admin/system/hero',{method:'POST',headers:{Origin:process.env.APP_URL!,Cookie:'rewards_test_admin='+token,'Content-Type':'image/gif'},body:animatedGif});assert.equal(replaced.status,201);const storedHero=await db.heroVisual.findUniqueOrThrow({where:{id:'homepage'}});assert.notEqual(storedHero.filename,originalFilename);assert.equal(storedHero.bytes.length,animatedGif.length);assert.equal(storedHero.filename.match(/^hero-[a-f0-9]{32}\.gif$/)?.length,1);
+  const imageResponse=await fetch(prefix+'/api/hero/'+hero.sha256);assert.equal(imageResponse.status,200);assert.equal(imageResponse.headers.get('content-type'),'image/gif');assert.deepEqual(Buffer.from(await imageResponse.arrayBuffer()),animatedGif);
+  assert.deepEqual((await (await api('hero')).data),{url:'/api/hero/'+hero.sha256,width:1,height:1,size:animatedGif.length,updatedAt:storedHero.updatedAt.toISOString()});
+  assert.equal((await api('admin/system/hero/state','POST',{enabled:false,published:true})).status,201);assert.equal((await api('hero')).data.url,null);
+  assert.equal((await fetch(prefix+'/api/hero/'+hero.sha256)).status,503);
+  assert.equal((await api('admin/system/hero','DELETE')).status,200);assert.equal((await api('hero')).data.url,null);
+  const restored=await fetch(prefix+'/api/admin/system/hero',{headers:{Origin:process.env.APP_URL!,Cookie:'rewards_test_admin='+token}});assert.equal((await restored.json()).exists,false);
+  const tooLarge=await fetch(prefix+'/api/admin/system/hero',{method:'POST',headers:{Origin:process.env.APP_URL!,Cookie:'rewards_test_admin='+token,'Content-Type':'image/gif'},body:Buffer.alloc(5*1024*1024+1)});assert.equal(tooLarge.status,400);
   const current=await api('config');assert.equal(current.status,200);assert.equal(current.data.multiChainEnabled,false);assert.equal(current.data.claimsPaused,true);assert.equal(current.data.chainId,Number(process.env.BLOCKCHAIN_CHAIN_ID||process.env.CHAIN_ID));
   const list=await api('admin/settings/blockchains'),active=list.data.find((n:{isActive:boolean})=>n.isActive);assert.ok(active);
   const candidate={...active.config,networkKey:'fixture-'+id,networkName:'Isolated candidate '+id,chainId:String(Number(active.chainId)+1),chainIdHex:'',claimEnabled:false};
@@ -49,7 +65,7 @@ test('real central configuration, single-chain lock, social targets and credenti
   await db.authSession.update({where:{id:digest(token)},data:{createdAt:new Date(Date.now()-600000)}});
   assert.equal((await api('admin/social-api/X','POST',{credentials:{clientSecret:'replacement'},redirectUri:callback,enabled:true,mode:'oauth'})).status,403);
   await db.authSession.update({where:{id:digest(token)},data:{createdAt:new Date()}});
-  const audits=await db.auditEvent.findMany({where:{actor:admin.id}});assert.ok(audits.some(a=>a.action==='SOCIAL_API_CONFIGURATION_SAVE'));assert.ok(!JSON.stringify(audits).includes(secret));
+  const audits=await db.auditEvent.findMany({where:{actor:admin.id}});assert.ok(audits.some(a=>a.action==='SOCIAL_API_CONFIGURATION_SAVE'));assert.ok(audits.some(a=>a.action==='HERO_GIF_PUBLISH'));assert.ok(!JSON.stringify(audits).includes(animatedGif.toString('base64'));assert.ok(!JSON.stringify(audits).includes(secret));
   const platform='FIXTURE_'+id.toUpperCase();assert.equal((await api('admin/social-platforms','POST',{key:platform,name:'Custom metadata connector'})).status,201);
   const b={platform:'X',accountType:'PROFILE',name:'Fixture one',username:'fixture',accountId:'10001',profileUrl:'https://x.com/fixture-one',defaultTargetUrl:'https://x.com/fixture-one/status/1',enabled:true};
   for(let i=0;i<2;i++){const a=await api('admin/official-accounts','POST',{...b,name:'Fixture '+i,accountId:String(10001+i)});assert.equal(a.status,201);accounts.push(a.data.id);}
@@ -68,6 +84,7 @@ test('real central configuration, single-chain lock, social targets and credenti
   assert.equal((await api('admin/settings/env/validate','POST')).status,201);
   assert.equal((await api('admin/settings/reload','POST')).status,201);
  }finally{
+  if(previousHero){await db.heroVisual.deleteMany({where:{id:'homepage'}});await db.heroVisual.create({data:previousHero});}else await db.heroVisual.deleteMany({where:{id:'homepage'}});
   if(previousSetting){const {platform,...data}=previousSetting;await db.integrationSetting.update({where:{platform},data});}else await db.integrationSetting.deleteMany({where:{platform:'X'}});
   if(previousCredential){const {id:credentialId,...data}=previousCredential;await db.credential.update({where:{id:credentialId},data});}else await db.credential.deleteMany({where:{scope:'SOCIAL_PLATFORM',ownerId:'X',kind:'OAUTH_CONFIG'}});
   await db.task.deleteMany({where:{campaignId:{in:campaigns}}});await db.campaign.deleteMany({where:{id:{in:campaigns}}});

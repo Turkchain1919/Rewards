@@ -284,3 +284,18 @@ model ClaimAuthorization {
  entries LedgerEntry[]
  @@index([networkId,status])
 }
+
+model HeroVisual {
+ id String @id @default("homepage")
+ filename String
+ contentType String @default("image/gif")
+ bytes Bytes
+ size Int
+ width Int
+ height Int
+ frameCount Int
+ sha256 String
+ published Boolean @default(false)
+ enabled Boolean @default(false)
+ updatedAt DateTime @updatedAt
+}

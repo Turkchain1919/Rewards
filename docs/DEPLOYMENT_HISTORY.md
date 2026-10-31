@@ -23,3 +23,6 @@ Configuration/Social API release based on95b199ed37bef3a527664d04863a07ab25435a4
 ## 0.4.0 deployed; 0.4.1 SEO follow-up
 0.4.0 commit603fe9c46ddcdb7128d8916768ac96eb2f125816 deployed successfully, all preexisting production record IDs preserved, GitHub synchronized, RPC/WSS1919 and public/mobile checks passed. Fifteen application and ten Foundry tests passed.
 Final robots/sitemap inspection found build-time TEST origins in static metadata.0.4.1 changes those routes to runtime generation and adds an artifact guard preventing this regression. Health, exact deployment revision and synchronization are recorded in .runtime/deployment.json.
+
+## Hero visual management release candidate0.4.2
+OWNER-only homepage GIF upload/preview/publish/replace/enable/disable/remove implemented in TEST. GIF bytes and metadata persist in PostgreSQL; bounded content validation, audited operations, public current-image response, original design fallback and reduced-motion fallback are included. See HERO_VISUAL.md. Desktop/mobile browser persistence test, full test/build/security/release gates and production rollout pending.

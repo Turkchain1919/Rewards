@@ -5,6 +5,7 @@ import {networkInput,environmentNetwork,validateEndpoint} from '../apps/api/src/
 import {signClaim} from '../apps/api/src/claims';
 import {authorizationUrl,configuration} from '../apps/api/src/providers';
 import {refreshOAuth,revokeOAuth} from '../apps/api/src/oauth-lifecycle';
+import {inspectHeroGif} from '../apps/api/src/hero-media';
 test('portable EVM schemas reject mismatched hex IDs and unsafe endpoints',async()=>{
  const c=environmentNetwork();assert.equal(networkInput.safeParse({...c,chainIdHex:'0xdeadbeef'}).success,false);
  assert.equal(networkInput.safeParse({...c,chainId:'not-a-chain'}).success,false);
@@ -39,4 +40,12 @@ test('OAuth refresh rotates tokens, verifies account identity and rejects provid
  await assert.rejects(()=>refreshOAuth('X',{accessToken:'old',refreshToken:'refresh',expiresAt:0},scopes,'123','PROFILE',options,limited));
  const revoke=(async()=>new Response('{"revoked":true}',{status:200})) as typeof fetch;
  assert.equal((await revokeOAuth('X',{accessToken:'fixture',expiresAt:0},options,revoke)).revoked,true);
+});
+
+test('hero media validates GIF signatures, dimensions, frame structure and the 5 MB cap',()=>{
+ const gif=Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7','base64');
+ const meta=inspectHeroGif(gif);assert.equal(meta.width,1);assert.equal(meta.height,1);assert.equal(meta.frameCount,1);
+ assert.throws(()=>inspectHeroGif(Buffer.from('<svg onload=alert(1)>')));
+ const huge=Buffer.alloc(5*1024*1024+1);assert.throws(()=>inspectHeroGif(huge));
+ const oversized=Buffer.from(gif);oversized[6]=0xb1;oversized[7]=0x04;assert.throws(()=>inspectHeroGif(oversized));
 });

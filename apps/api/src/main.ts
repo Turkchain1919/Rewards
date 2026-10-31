@@ -15,6 +15,7 @@ import {MissionController,ManagementController} from './management';
 import {SafeErrors} from './errors';
 import {DataService} from './data';
 import {AuthService,UserAuthController,AdminAuthController} from './auth';
+import {HeroMediaController} from './hero-media';
 
 @Controller('api')
 class Api {
@@ -24,7 +25,7 @@ class Api {
  @Get('integrations') integrations(){return readiness().map(({platform,status,ready})=>({platform,status,ready,rewardedActionsEnabled:false}));}
  @Get('config') config(@Query('network')network?:string){return this.configuration.publicConfig(network);}
 }
-@Module({controllers:[Api,UserAuthController,AdminAuthController,MissionController,ManagementController,SocialController,ConfigurationController,OfficialAccountsController,OAuthLifecycleController,ClaimController],providers:[DataService,AuthService,EngineService,IntegrationSettings,SecretStore,ConfigurationService,OfficialAccountsService,OAuthLifecycle,ClaimService]})
+@Module({controllers:[Api,HeroMediaController,UserAuthController,AdminAuthController,MissionController,ManagementController,SocialController,ConfigurationController,OfficialAccountsController,OAuthLifecycleController,ClaimController],providers:[DataService,AuthService,EngineService,IntegrationSettings,SecretStore,ConfigurationService,OfficialAccountsService,OAuthLifecycle,ClaimService]})
 class AppModule {}
 async function bootstrap(){
  if(!['test','production'].includes(process.env.APP_ENV || '')) throw new Error('Invalid APP_ENV');

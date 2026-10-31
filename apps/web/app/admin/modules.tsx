@@ -6,6 +6,7 @@ import { useRuntime } from '../runtime';
 import SocialApi from './social-api';
 import SocialManagement from './social-management';
 import AdminSettings from './settings';
+import HeroVisualAdmin from './hero-visual';
 type Campaign = {
     id: string;
     title: string;
@@ -128,7 +129,7 @@ export default function AdminModules({ role }: {
     const ledger = tab === 'ledger' && data ? data as Ledger : null;
     const integrations = tab === 'integrations' && Array.isArray(data) ? data as Integration[] : [];
     return <section><nav className="tabs" aria-label="Yönetim modülleri">{tabs.map(([key, label]) => <button className={tab === key ? 'selected' : ''} key={key} onClick={() => { setTab(key); setRows([]); setData(null); }}><T value={label}/></button>)}</nav><button disabled={busy} onClick={() => void load()}><T value="Verileri yenile"/></button>{error && <div role="alert" className="notice">{error}</div>}
- {tab === 'settings/social-api' ? <SocialApi role={role}/> : tab === 'settings/social' ? <SocialManagement role={role}/> : tab.startsWith('settings/') && <AdminSettings section={tab.split('/')[1]}/>}
+ {tab === 'system' && role==='OWNER' && <HeroVisualAdmin/>}{tab === 'settings/social-api' ? <SocialApi role={role}/> : tab === 'settings/social' ? <SocialManagement role={role}/> : tab.startsWith('settings/') && <AdminSettings section={tab.split('/')[1]}/>}
  {tab === 'summary' && summary && <><div className="grid">{[['Kullanıcılar', summary.users], ['Kampanyalar', summary.campaigns], ['Görevler', summary.tasks], ['İnceleme bekleyen', summary.pending]].map(([k, v]) => <article key={k}><span>{k}</span><h2>{v}</h2></article>)}</div><div className="grid">{Object.entries(summary.rewards).map(([k, v]) => <article key={k}><span>{k}</span><h2>{formatEther(v)} {symbol}</h2></article>)}</div></>}
  {tab === 'campaigns' && <><section className="panel"><h2><T value={campaignEdit ? 'Kampanyayı düzenle' : 'Kampanya oluştur'}/></h2><form key={campaignEdit?.id || 'new'} onSubmit={e => { const f = form(e); try {
         void act('campaigns' + (campaignEdit ? '/' + campaignEdit.id : ''), campaignEdit ? 'PUT' : 'POST', { title: f.get('title'), description: f.get('description'), budgetWei: parseEther(String(f.get('budget'))).toString() });
