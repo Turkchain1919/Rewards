@@ -19,3 +19,7 @@ Additive migrations introduce budgets, submissions, ledger states and transition
 
 ## 0.4.0 candidate
 Configuration/Social API release based on95b199ed37bef3a527664d04863a07ab25435a47. Additive migrations005–012 preserve existing users, campaigns, tasks and rewards. Deployment backs up production database and retains previous immutable release. Exact deployed SHA, test/build/health results and GitHub synchronization are recorded in the protected deployment manifest. No production credentials are seeded from TEST.
+
+## 0.4.0 deployed; 0.4.1 SEO follow-up
+0.4.0 commit603fe9c46ddcdb7128d8916768ac96eb2f125816 deployed successfully, all preexisting production record IDs preserved, GitHub synchronized, RPC/WSS1919 and public/mobile checks passed. Fifteen application and ten Foundry tests passed.
+Final robots/sitemap inspection found build-time TEST origins in static metadata.0.4.1 changes those routes to runtime generation and adds an artifact guard preventing this regression. Health, exact deployment revision and synchronization are recorded in .runtime/deployment.json.

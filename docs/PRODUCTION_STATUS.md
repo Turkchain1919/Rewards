@@ -7,3 +7,5 @@ All social credentials remain absent. Claims stay paused; no mainnet vault, sign
 Task/ledger release0.3.0 adds real administration and user mission workflows. No demo users, fake campaigns, fabricated balances or production signer are seeded. API credentials remain absent. Earned balances represent platform liabilities, not confirmation that the native vault is funded.
 
 0.4.0 introduces Owner-controlled Social API configuration and portable single-chain settings. Turkchain remains active and payouts paused. Provider configuration is intentionally disabled until Owner saves approved credentials. Production release status must be read from .runtime/deployment.json, not inferred from the existence of source code.
+
+Verified0.4.0 live:603fe9c46ddcdb7128d8916768ac96eb2f125816, healthy and synchronized. Social API forms accept encrypted Owner configuration; real provider consent/validation still requires Owner-supplied credentials.0.4.1 corrects deployment-origin metadata generation; consult the manifest for its exact deployed SHA.

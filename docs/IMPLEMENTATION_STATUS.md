@@ -20,3 +20,5 @@ Single installation stays locked to its configured chain. WALLETCONNECT_PROJECT_
 Claim EIP712 preparation, reservation and receipt reconciliation code is present behind closed server authorization gates; real mainnet deployment/funding/activation and real payouts remain unperformed. Automatic claim reconciliation scheduling and a complete positive local-chain end-to-end payout drill remain follow-up work before enabling claims.
 Live social authorization remains awaiting OWNER credentials, provider permissions and consent. No real connected account or successful API validation is invented.
 See SOCIAL_API_CONFIGURATION.md and PORTABLE_CONFIGURATION.md. Exact release tests/deployment status are recorded by the release gate and manifest; this candidate is not successful until those pass.
+
+0.4.0 was successfully deployed and GitHub synchronized with preserved production records.0.4.1 adds dynamic deployment-origin robots/sitemap generation and a build-artifact regression guard. No provider keys, mainnet deployment or payouts were enabled.
