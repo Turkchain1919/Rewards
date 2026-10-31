@@ -30,7 +30,7 @@ if 'DATABASE_URL' not in values:
  values['DATABASE_URL']=f'postgresql://{db}:{password}@127.0.0.1:5432/{db}?schema=public'
 if 'REDIS_URL' not in values:values['REDIS_URL']=f'redis://:{secrets.token_hex(32)}@127.0.0.1:{redis}/0'
 values.update(APP_ENV=env,NODE_ENV='production',API_PORT=str(api),PORT=str(web),INTERNAL_API_URL=f'http://127.0.0.1:{api}',REWARD_CLAIMS_PAUSED='true',REWARD_GAS_SPONSORSHIP_ENABLED='false',CHAIN_ID='1919',CHAIN_RPC_URL='https://rpc.turkscan.com',CHAIN_WSS_URL='wss://evm-ws.turkscan.com',CHAIN_EXPLORER_URL='https://turkscan.com')
-if env=='test':values['REWARDS_ENABLED']='true';values['APP_URL']=f'http://127.0.0.1:{web}'
+if env=='test':values['REWARDS_ENABLED']='true';values['APP_URL']='http://127.0.0.1:18480'
 else:values.update(APP_URL='https://rewards.turkscan.com',APP_DOMAIN='rewards.turkscan.com',REWARDS_CURRENCY='TURK')
 for platform in ['X','TELEGRAM','FACEBOOK','INSTAGRAM','YOUTUBE','TIKTOK']:
  for key in ['CLIENT_ID','CLIENT_SECRET','REDIRECT_URI']:

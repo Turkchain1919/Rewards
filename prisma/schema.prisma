@@ -10,7 +10,10 @@ model User {
  displayName String?
  sessions AuthSession[]
  createdAt DateTime @default(now())
+ socialAccounts SocialAccount[]
+ socialLinkStates SocialLinkState[]
  submissions Submission[]
+ claims ClaimAuthorization[]
  entries LedgerEntry[]
 }
 model Campaign {
@@ -21,6 +24,8 @@ model Campaign {
  startsAt DateTime?
  endsAt DateTime?
  createdAt DateTime @default(now())
+ networkId String?
+ network BlockchainNetwork? @relation(fields:[networkId],references:[id])
  budgetWei Decimal @default(0) @db.Decimal(78,0)
  allocatedWei Decimal @default(0) @db.Decimal(78,0)
  rewards LedgerEntry[]
@@ -34,6 +39,10 @@ model Task {
  platform String
  kind String
  enabled Boolean @default(false)
+ officialAccountId String?
+ officialAccount OfficialSocialAccount? @relation(fields:[officialAccountId],references:[id])
+ configurationRequired Boolean @default(false)
+ targetUrl String?
  policyReviewed Boolean @default(false)
  verification Json?
  submissions Submission[]
@@ -46,11 +55,15 @@ model LedgerEntry {
  amountWei Decimal @db.Decimal(78,0)
  idempotencyKey String @unique
  reason String
+ networkId String?
+ network BlockchainNetwork? @relation(fields:[networkId],references:[id])
  status LedgerStatus @default(AVAILABLE)
  campaignId String?
  campaign Campaign? @relation(fields:[campaignId],references:[id])
  submissionId String? @unique
  submission Submission? @relation(fields:[submissionId],references:[id])
+ claimId String?
+ claim ClaimAuthorization? @relation(fields:[claimId],references:[id])
  events LedgerEvent[]
  createdAt DateTime @default(now())
 }
@@ -127,4 +140,147 @@ model LedgerEvent {
  reason String
  createdAt DateTime @default(now())
  @@index([ledgerId])
+}
+
+model SocialAccount {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ provider String
+ providerAccountId String
+ accountName String
+ credentialId String?
+ credential Credential? @relation(fields:[credentialId],references:[id])
+ lastRefreshAt DateTime?
+ lastError String?
+ encryptedTokens String?
+ scopes String[]
+ expiresAt DateTime?
+ createdAt DateTime @default(now())
+ @@unique([userId,provider])
+ @@unique([provider,providerAccountId])
+}
+
+model IntegrationSetting {
+ platform String @id
+ authMode String @default("oauth")
+ credentialsUpdatedAt DateTime?
+ enabledOverride Boolean?
+ callbackUrl String?
+ graphVersion String?
+ disabled Boolean @default(false)
+ name String?
+ profileUrl String?
+ accountId String?
+ defaultTargetUrl String?
+ version Int @default(0)
+ lastTestAt DateTime?
+ lastSuccessAt DateTime?
+ lastTestStatus String?
+ lastError String?
+ updatedAt DateTime @updatedAt
+}
+
+model BlockchainNetwork {
+ id String @id @default(cuid())
+ networkKey String @unique
+ networkName String
+ chainId String @unique
+ config Json
+ enabled Boolean @default(false)
+ isActive Boolean @default(false)
+ version Int @default(0)
+ verification Json?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ campaigns Campaign[]
+ claims ClaimAuthorization[]
+ entries LedgerEntry[]
+}
+model ConfigDocument {
+ key String @id
+ value Json
+ version Int @default(0)
+ updatedAt DateTime @updatedAt
+}
+model Credential {
+ id String @id @default(cuid())
+ scope String
+ ownerId String
+ kind String
+ ciphertext String?
+ version Int @default(0)
+ revokedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ personalAccounts SocialAccount[]
+ officialAccounts OfficialSocialAccount[]
+ @@unique([scope,ownerId,kind])
+}
+
+model OfficialSocialAccount {
+ id String @id @default(cuid())
+ platform String
+ accountType String @default("PROFILE")
+ name String
+ username String @default("")
+ accountId String @default("")
+ profileUrl String @default("")
+ defaultTargetUrl String @default("")
+ enabled Boolean @default(false)
+ isDefault Boolean @default(false)
+ connectionStatus String @default("UNCONFIGURED")
+ credentialId String?
+ credential Credential? @relation(fields:[credentialId],references:[id])
+ metadataOverride Boolean @default(false)
+ version Int @default(0)
+ sourceKey String? @unique
+ lastSuccessAt DateTime?
+ lastError String?
+ deletedAt DateTime?
+ createdAt DateTime @default(now())
+ updatedAt DateTime @updatedAt
+ tasks Task[]
+ @@index([platform])
+}
+
+model SocialPlatform {
+ key String @id
+ name String
+ connector String
+ enabled Boolean @default(true)
+ createdAt DateTime @default(now())
+}
+
+model SocialLinkState {
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ provider String
+ generation Int @default(0)
+ @@id([userId,provider])
+}
+
+model ClaimAuthorization {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id])
+ networkId String
+ network BlockchainNetwork @relation(fields:[networkId],references:[id])
+ recipient String
+ amountWei Decimal @db.Decimal(78,0)
+ nonce String @unique
+ deadline DateTime
+ createdBlock String
+ lastScannedBlock String?
+ contractAddress String
+ bytecodeHash String
+ authorization Json
+ status String @default("PREPARED")
+ transactionHash String?
+ confirmedAt DateTime?
+ lastError String?
+ checkedAt DateTime?
+ createdAt DateTime @default(now())
+ entries LedgerEntry[]
+ @@index([networkId,status])
 }

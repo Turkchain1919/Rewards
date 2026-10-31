@@ -5,11 +5,12 @@ import {getAddress,verifyMessage} from 'ethers';
 import {SiweMessage} from 'siwe';
 import * as OTPAuth from 'otpauth';
 import {z} from 'zod';
+import {ConfigurationService} from './configuration';
 import {DataService} from './data';
 import {parse,origin,hashPassword,verifyPassword,encrypt,decrypt,digest,equal,cookie,readCookie,passwordSchema,emailSchema} from './security';
 @Injectable()
 export class AuthService {
- constructor(readonly data:DataService){}
+ constructor(readonly data:DataService,readonly config:ConfigurationService){}
  async limit(req:Request,bucket:string,max=12){
   const key='rate:'+bucket+':'+digest(req.ip||'local');
   const count=Number(await this.data.redis.eval("local n=redis.call('INCR',KEYS[1]);if n==1 then redis.call('EXPIRE',KEYS[1],900) end;return n",1,key));
@@ -30,6 +31,12 @@ export class AuthService {
   if(!roles.includes(session.admin.role))throw new ForbiddenException('Role rejected');
   return {session,admin:session.admin};
  }
+ async stepUp(req:Request,code?:string){
+  const {session,admin}=await this.admin(req,['OWNER']);
+  if(Date.now()-session.createdAt.getTime()<300000||await this.data.redis.exists('stepup:'+session.id))return;
+  if(!code||!admin.totpEncrypted)throw new ForbiddenException('Step-up MFA required');
+  await this.totp(admin.id,decrypt(admin.totpEncrypted),code);await this.data.redis.set('stepup:'+session.id,'1','EX',300);
+ }
  async user(req:Request){
   const session=await this.data.db.authSession.findUnique({where:{id:digest(readCookie(req,'user'))},include:{user:true}});
   if(!session?.user||session.expiresAt.getTime()<Date.now())throw new UnauthorizedException();
@@ -48,10 +55,11 @@ export class UserAuthController {
  constructor(private readonly auth:AuthService){}
  @Post('challenge')async challenge(@Body()body:unknown,@Req()req:Request,@Res({passthrough:true})res:Response){
   origin(req);await this.auth.limit(req,'wallet');
-  const {address}=parse(z.object({address:z.string().regex(/^0x[0-9a-fA-F]{40}$/)}).strict(),body);
+  const {address,networkKey}=parse(z.object({address:z.string().regex(/^0x[0-9a-fA-F]{40}$/),networkKey:z.string().max(40).optional()}).strict(),body);
+  const network=await this.auth.config.selected(networkKey),branding=await this.auth.config.branding();
   const token=randomBytes(32).toString('hex'),nonce=randomBytes(16).toString('hex');
-  const message=new SiweMessage({domain:new URL(process.env.APP_URL!).host,address:getAddress(address),statement:'Sign in to Turkchain Social Rewards. No transaction or payment.',uri:process.env.APP_URL!,version:'1',chainId:1919,nonce,issuedAt:new Date().toISOString(),expirationTime:new Date(Date.now()+300000).toISOString()}).prepareMessage();
-  await this.auth.data.redis.set('challenge:'+digest(token),JSON.stringify({message,address:getAddress(address)}),'EX',300);
+  const message=new SiweMessage({domain:new URL(process.env.APP_URL!).host,address:getAddress(address),statement:'Sign in to '+branding.appName.replace(/[\r\n]/g,' ')+'. No transaction or payment.',uri:process.env.APP_URL!,version:'1',chainId:Number(network.chainId),nonce,issuedAt:new Date().toISOString(),expirationTime:new Date(Date.now()+300000).toISOString()}).prepareMessage();
+  await this.auth.data.redis.set('challenge:'+digest(token),JSON.stringify({message,address:getAddress(address),networkKey:network.networkKey}),'EX',300);
   cookie(res,'challenge',token,300000);return {message};
  }
  @Post('verify')async verify(@Body()body:unknown,@Req()req:Request,@Res({passthrough:true})res:Response){
@@ -59,7 +67,8 @@ export class UserAuthController {
   const {signature}=parse(z.object({signature:z.string().regex(/^0x[0-9a-fA-F]{130}$/)}).strict(),body);
   const raw=await this.auth.data.redis.getdel('challenge:'+digest(readCookie(req,'challenge')));
   cookie(res,'challenge','',0);if(!raw)throw new UnauthorizedException('Challenge expired');
-  const challenge=JSON.parse(raw) as {message:string;address:string};
+  const challenge=JSON.parse(raw) as {message:string;address:string;networkKey?:string};
+  await this.auth.config.selected(challenge.networkKey);
   try{if(verifyMessage(challenge.message,signature)!==challenge.address)throw new Error();}catch{throw new UnauthorizedException('Signature rejected');}
   const user=await this.auth.data.db.user.upsert({where:{wallet:challenge.address.toLowerCase()},create:{wallet:challenge.address.toLowerCase()},update:{}});
   await this.auth.issue(res,'user',user.id,false,digest(readCookie(req,'user')));

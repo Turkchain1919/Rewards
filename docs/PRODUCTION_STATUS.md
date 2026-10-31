@@ -5,3 +5,5 @@ Phase2 authentication release adds admin setup, password/TOTP/role/session contr
 All social credentials remain absent. Claims stay paused; no mainnet vault, signer or funding is configured.
 
 Task/ledger release0.3.0 adds real administration and user mission workflows. No demo users, fake campaigns, fabricated balances or production signer are seeded. API credentials remain absent. Earned balances represent platform liabilities, not confirmation that the native vault is funded.
+
+0.4.0 introduces Owner-controlled Social API configuration and portable single-chain settings. Turkchain remains active and payouts paused. Provider configuration is intentionally disabled until Owner saves approved credentials. Production release status must be read from .runtime/deployment.json, not inferred from the existence of source code.

@@ -13,3 +13,10 @@ Task/campaign creation/edit/publish/pause supports exact integer-wei budgets/rew
 User dashboard contains signed profile access, public missions, authenticated evidence submission, task history and Pending/Available/Reserved/Claimed balance views.
 Serializable transactions, database constraints, unique user/task keys and immutable transition records prevent overspending and repeated awards. Rejecting a pending submission releases budget. Reserved/Claimed transitions await the claim integration module; no actual payments are enabled.
 Concurrency integration tests cover budget races, idempotent approvals, reward duplication, role controls, evidence rules, paused campaign visibility and forbidden social-task publication.
+
+## Phase2 0.4.0 — configuration and Social API candidate
+Central single-chain registry, encrypted credential store, audited Social API Save/Edit/Enable/Test forms, official multi-account OAuth/connect/disconnect and dynamic task targets are implemented. Eight connectors resolve admin credentials over env; six primary provider forms were exercised in a real desktop/mobile browser. OAuth lifecycle tests cover PKCE, refresh rotation, identity failures, rate limits and revocation. EN/TR routes, configurable branding/metadata and wallet configuration are included.
+Single installation stays locked to its configured chain. WALLETCONNECT_PROJECT_ID is canonical. Candidate network records cannot execute on a different chain.
+Claim EIP712 preparation, reservation and receipt reconciliation code is present behind closed server authorization gates; real mainnet deployment/funding/activation and real payouts remain unperformed. Automatic claim reconciliation scheduling and a complete positive local-chain end-to-end payout drill remain follow-up work before enabling claims.
+Live social authorization remains awaiting OWNER credentials, provider permissions and consent. No real connected account or successful API validation is invented.
+See SOCIAL_API_CONFIGURATION.md and PORTABLE_CONFIGURATION.md. Exact release tests/deployment status are recorded by the release gate and manifest; this candidate is not successful until those pass.

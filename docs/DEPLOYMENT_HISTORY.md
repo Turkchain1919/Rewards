@@ -16,3 +16,6 @@ Commit 29279e350ed4a0bb56304d46ce456447ca00d163 deployed and synchronized to Git
 
 ## 0.3.0 administration/task/ledger release
 Additive migrations introduce budgets, submissions, ledger states and transition events with budget bounds. Previous auth release remains schema-compatible. Current outcome/SHA is recorded in the deployment manifest after checks.
+
+## 0.4.0 candidate
+Configuration/Social API release based on95b199ed37bef3a527664d04863a07ab25435a47. Additive migrations005–012 preserve existing users, campaigns, tasks and rewards. Deployment backs up production database and retains previous immutable release. Exact deployed SHA, test/build/health results and GitHub synchronization are recorded in the protected deployment manifest. No production credentials are seeded from TEST.

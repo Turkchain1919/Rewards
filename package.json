@@ -1,6 +1,6 @@
 {
   "name": "turkchain-social-rewards",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "workspaces": [
     "apps/*"
@@ -9,7 +9,7 @@
     "build": "npm run build -w @rewards/api && npm run build -w @rewards/web",
     "typecheck": "tsc -p apps/api/tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
     "lint": "eslint apps tests",
-    "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
+    "test": "tsx --tsconfig apps/api/tsconfig.json --test --test-concurrency=1 tests/*.test.ts",
     "db:generate": "prisma generate",
     "db:deploy": "prisma migrate deploy"
   },
@@ -17,12 +17,15 @@
     "@openzeppelin/contracts": "^5.6.1",
     "@prisma/adapter-pg": "7.10.1",
     "@prisma/client": "7.10.1",
+    "@walletconnect/universal-provider": "^2.26.0",
     "bullmq": "^5.0.0",
     "dotenv": "^17.0.0",
     "ethers": "^6.0.0",
     "ioredis": "^5.0.0",
+    "jose": "^6.2.14",
     "otpauth": "^9.5.2",
     "pg": "^8.16.0",
+    "qrcode.react": "^4.2.0",
     "siwe": "^3.0.0",
     "zod": "^4.6.7"
   },

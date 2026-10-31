@@ -1,28 +1,35 @@
 import 'reflect-metadata';
-import {Controller, Get, Module} from '@nestjs/common';
+import {Controller, Get, Query, Module} from '@nestjs/common';
 import {NestFactory} from '@nestjs/core';
 import helmet from 'helmet';
+import {ClaimService,ClaimController} from './claims';
+import {OAuthLifecycle,OAuthLifecycleController} from './oauth-lifecycle';
+import {OfficialAccountsService,OfficialAccountsController} from './official-accounts';
+import {ConfigurationService,SecretStore} from './configuration';
+import {ConfigurationController} from './config-controller';
+import {IntegrationSettings} from './integration-settings';
+import {SocialController} from './social';
+import {readiness} from './providers';
 import {EngineService} from './engine';
 import {MissionController,ManagementController} from './management';
 import {SafeErrors} from './errors';
-import {platforms} from './policy';
 import {DataService} from './data';
 import {AuthService,UserAuthController,AdminAuthController} from './auth';
 
 @Controller('api')
 class Api {
- constructor(private readonly services:DataService){}
+ constructor(private readonly services:DataService,private readonly configuration:ConfigurationService){}
  @Get('health') health(){return this.services.health();}
- @Get('campaigns') campaigns(){return this.services.db.campaign.findMany({where:{status:'ACTIVE'},include:{tasks:{where:{enabled:true}}},orderBy:{createdAt:'desc'},take:50});}
- @Get('integrations') integrations(){return platforms.map(platform=>({platform,status:'awaiting_credentials',rewardedActionsEnabled:false}));}
- @Get('config') config(){return {chainId:1919,rpcUrl:'https://rpc.turkscan.com',explorerUrl:'https://turkscan.com',claimsPaused:true,release:process.env.RELEASE_SHA || 'development'};}
+ @Get('campaigns') async campaigns(@Query('network')key?:string){const network=await this.configuration.selected(key);return this.services.db.campaign.findMany({where:{status:'ACTIVE',networkId:network.id},include:{tasks:{where:{enabled:true}}},orderBy:{createdAt:'desc'},take:50});}
+ @Get('integrations') integrations(){return readiness().map(({platform,status,ready})=>({platform,status,ready,rewardedActionsEnabled:false}));}
+ @Get('config') config(@Query('network')network?:string){return this.configuration.publicConfig(network);}
 }
-@Module({controllers:[Api,UserAuthController,AdminAuthController,MissionController,ManagementController],providers:[DataService,AuthService,EngineService]})
+@Module({controllers:[Api,UserAuthController,AdminAuthController,MissionController,ManagementController,SocialController,ConfigurationController,OfficialAccountsController,OAuthLifecycleController,ClaimController],providers:[DataService,AuthService,EngineService,IntegrationSettings,SecretStore,ConfigurationService,OfficialAccountsService,OAuthLifecycle,ClaimService]})
 class AppModule {}
 async function bootstrap(){
  if(!['test','production'].includes(process.env.APP_ENV || '')) throw new Error('Invalid APP_ENV');
  if(!/^[a-f0-9]{64}$/.test(process.env.DATA_ENCRYPTION_KEY||''))throw new Error('DATA_ENCRYPTION_KEY required');
- if(process.env.REWARD_CLAIMS_PAUSED !== 'true') throw new Error('Claims activation not authorized');
+ if(process.env.REWARD_CLAIMS_PAUSED !== 'true'&&process.env.MASTER_PAYOUTS_AUTHORIZED !== 'true') throw new Error('Claims activation not authorized');
  const app=await NestFactory.create(AppModule,{logger:['error','warn','log']});
  app.use(helmet());
  app.useGlobalFilters(new SafeErrors());

@@ -1,7 +1,7 @@
 import {Worker,Queue} from 'bullmq';
 import Redis from 'ioredis';
 if(!['test','production'].includes(process.env.APP_ENV || '')) throw new Error('Invalid environment');
-if(process.env.REWARD_CLAIMS_PAUSED!=='true') throw new Error('Claims must remain paused');
+if(process.env.REWARD_CLAIMS_PAUSED!=='true'&&process.env.MASTER_PAYOUTS_AUTHORIZED!=='true') throw new Error('Claims must remain paused');
 const connection=new Redis(process.env.REDIS_URL!,{maxRetriesPerRequest:null});
 const prefix='rewards-'+process.env.APP_ENV;
 const queue=new Queue('maintenance',{connection,prefix});

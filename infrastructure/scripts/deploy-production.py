@@ -26,9 +26,7 @@ if (prod/'.gitignore').exists() and not git(prod,'ls-files','.gitignore'):
  shutil.move(prod/'.gitignore',prod/'backups/bootstrap.gitignore')
 run(['git','-C',str(prod),'fetch',str(test),sha],stdout=subprocess.DEVNULL)
 run(['git','-C',str(prod),'merge','--ff-only',sha],stdout=subprocess.DEVNULL)
-for line in (prod/'.env').read_text().splitlines():
- if '=' in line and not line.startswith('#'):
-  k,v=line.split('=',1);env[k]=v
+env.update(json.loads(subprocess.check_output(['node','-e','const fs=require("node:fs"),dotenv=require(process.argv[2]);process.stdout.write(JSON.stringify(dotenv.parse(fs.readFileSync(process.argv[1]))));',str(prod/'.env'),str(test/'node_modules/dotenv')],text=True)))
 if env.get('APP_ENV')!='production' or env.get('REWARD_CLAIMS_PAUSED')!='true':raise SystemExit('Invalid production environment')
 run([str(release/'node_modules/.bin/prisma'),'migrate','deploy'],cwd=release,env=env)
 envpath=prod/'.env'

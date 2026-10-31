@@ -1,0 +1,77 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {randomBytes} from 'node:crypto';
+import {PrismaClient} from '@prisma/client';
+import {PrismaPg} from '@prisma/adapter-pg';
+import {digest} from '../apps/api/src/security';
+test('real central configuration, single-chain lock, social targets and credential redaction',{skip:process.env.RUN_INTEGRATION!=='true'},async()=>{
+ assert.equal(process.env.APP_ENV,'test');assert.match(process.env.DATABASE_URL||'',/rewards_test/);
+ const db=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL,max:4})}),id=randomBytes(8).toString('hex'),token=randomBytes(32).toString('hex'),secret='fixture-secret-'+id;
+ const admin=await db.admin.create({data:{email:'config-'+id+'@example.invalid',passwordHash:'unusable-fixture',role:'OWNER'}});
+ await db.authSession.create({data:{id:digest(token),adminId:admin.id,mfaVerified:true,expiresAt:new Date(Date.now()+120000)}});
+ const previousSetting=await db.integrationSetting.findUnique({where:{platform:'X'}}),previousCredential=await db.credential.findUnique({where:{scope_ownerId_kind:{scope:'SOCIAL_PLATFORM',ownerId:'X',kind:'OAUTH_CONFIG'}}});
+ const prefix='http://127.0.0.1:'+process.env.API_PORT,accounts:string[]=[],campaigns:string[]=[],networks:string[]=[];
+ async function api(path:string,method='GET',body?:unknown){
+  const r=await fetch(prefix+'/api/'+path,{method,headers:{Origin:process.env.APP_URL!,Cookie:'rewards_test_admin='+token,'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body)});
+  const text=await r.text();return {status:r.status,text,data:r.headers.get('content-type')?.includes('application/json')?JSON.parse(text):null};
+ }
+ try{
+  const current=await api('config');assert.equal(current.status,200);assert.equal(current.data.multiChainEnabled,false);assert.equal(current.data.claimsPaused,true);assert.equal(current.data.chainId,Number(process.env.BLOCKCHAIN_CHAIN_ID||process.env.CHAIN_ID));
+  const list=await api('admin/settings/blockchains'),active=list.data.find((n:{isActive:boolean})=>n.isActive);assert.ok(active);
+  const candidate={...active.config,networkKey:'fixture-'+id,networkName:'Isolated candidate '+id,chainId:String(Number(active.chainId)+1),chainIdHex:'',claimEnabled:false};
+  const created=await api('admin/settings/blockchains','POST',candidate);assert.equal(created.status,201);networks.push(created.data.id);
+  assert.equal((await api('admin/settings/blockchains/'+created.data.id+'/enable','POST')).status,409);
+  assert.equal((await api('config?network='+candidate.networkKey)).status,409);
+  assert.equal((await api('tasks?network='+candidate.networkKey)).status,409);
+  assert.equal((await api('admin/settings/runtime','POST',{multiChainEnabled:true,claimsPaused:true})).status,400);
+  const modified={...created.data.config,networkName:'Edited inactive candidate'};
+  assert.equal((await api('admin/settings/blockchains/'+created.data.id,'PUT',{config:modified,version:created.data.version})).status,200);
+  assert.equal((await api('admin/settings/credentials','POST',{scope:'NETWORK',ownerId:created.data.id,kind:'EXPLORER_API_KEY',value:secret})).status,201);
+  const effective=await api('admin/settings/effective');assert.equal(effective.status,200);assert.ok(!effective.text.includes(secret));assert.ok(!effective.text.includes(process.env.DATA_ENCRYPTION_KEY!));
+  const creds=await db.credential.findFirstOrThrow({where:{scope:'NETWORK',ownerId:created.data.id}});assert.ok(creds.ciphertext&&!creds.ciphertext.includes(secret));
+  const template=await api('admin/settings/env/template');assert.equal(template.status,200);assert.ok(template.text.includes('WALLETCONNECT_PROJECT_ID='));assert.ok(!template.text.includes(process.env.ADMIN_BOOTSTRAP_TOKEN!));assert.ok(!template.text.includes(secret));
+  const callback=process.env.APP_URL+'/api/oauth/x/callback';
+  const beforeVersion=(await db.integrationSetting.findUnique({where:{platform:'X'}}))?.version||0;
+  assert.equal((await api('admin/social-api/X','POST',{credentials:{clientId:'fixture-client'},redirectUri:callback,enabled:true,mode:'oauth',version:beforeVersion})).status,400);
+  const saved=await api('admin/social-api/X','POST',{credentials:{clientId:'fixture-client-'+id,clientSecret:secret},redirectUri:callback,enabled:true,mode:'oauth',version:beforeVersion});
+  assert.equal(saved.status,201);assert.equal(saved.data.connected,false);assert.equal(saved.data.status,'configured');
+  const statuses=await api('admin/integrations');const x=statuses.data.find((p:{platform:string})=>p.platform==='X');assert.equal(x.status,'configured');assert.ok(x.configuredFields.includes('clientSecret'));assert.ok(!statuses.text.includes(secret));
+  const stored=await db.credential.findUniqueOrThrow({where:{scope_ownerId_kind:{scope:'SOCIAL_PLATFORM',ownerId:'X',kind:'OAUTH_CONFIG'}}});assert.ok(stored.ciphertext&&!stored.ciphertext.includes(secret));
+  const tested=await api('admin/integrations/X/test','POST');assert.equal(tested.status,201);assert.equal(tested.data.connected,false);assert.equal(tested.data.scope,'authorization_required');
+  assert.equal((await db.integrationSetting.findUniqueOrThrow({where:{platform:'X'}})).lastSuccessAt?.toISOString()||null,previousSetting?.lastSuccessAt?.toISOString()||null);
+  const edited=await api('admin/social-api/X','POST',{credentials:{clientSecret:secret+'-edited'},redirectUri:callback,enabled:true,mode:'oauth',version:x.version});
+  assert.equal(edited.status,201);assert.equal(edited.data.status,'configured');
+  const updated=(await api('admin/integrations')).data.find((p:{platform:string})=>p.platform==='X');assert.ok(updated.configuredFields.includes('clientId'));
+  assert.equal((await api('admin/social-api/X','POST',{credentials:{clientSecret:'stale-update'},redirectUri:callback,enabled:true,mode:'oauth',version:x.version})).status,409);
+  assert.equal((await api('admin/social-api/X','POST',{credentials:{},redirectUri:callback,enabled:false,mode:'oauth',version:updated.version})).data.status,'disabled');
+  assert.equal((await api('admin/integrations/X/test','POST')).status,503);
+  assert.equal((await api('admin/social-api/X','POST',{credentials:{},redirectUri:callback,enabled:true,mode:'public'})).status,400);
+  await db.authSession.update({where:{id:digest(token)},data:{createdAt:new Date(Date.now()-600000)}});
+  assert.equal((await api('admin/social-api/X','POST',{credentials:{clientSecret:'replacement'},redirectUri:callback,enabled:true,mode:'oauth'})).status,403);
+  await db.authSession.update({where:{id:digest(token)},data:{createdAt:new Date()}});
+  const audits=await db.auditEvent.findMany({where:{actor:admin.id}});assert.ok(audits.some(a=>a.action==='SOCIAL_API_CONFIGURATION_SAVE'));assert.ok(!JSON.stringify(audits).includes(secret));
+  const platform='FIXTURE_'+id.toUpperCase();assert.equal((await api('admin/social-platforms','POST',{key:platform,name:'Custom metadata connector'})).status,201);
+  const b={platform:'X',accountType:'PROFILE',name:'Fixture one',username:'fixture',accountId:'10001',profileUrl:'https://x.com/fixture-one',defaultTargetUrl:'https://x.com/fixture-one/status/1',enabled:true};
+  for(let i=0;i<2;i++){const a=await api('admin/official-accounts','POST',{...b,name:'Fixture '+i,accountId:String(10001+i)});assert.equal(a.status,201);accounts.push(a.data.id);}
+  assert.equal((await api('admin/official-accounts/'+accounts[1]+'/default','POST')).status,201);
+  const campaign=await api('admin/campaigns','POST',{title:'Config fixture '+id,description:'Isolated target configuration test campaign.',budgetWei:'100'});assert.equal(campaign.status,201);campaigns.push(campaign.data.id);
+  const task=await api('admin/tasks','POST',{campaignId:campaign.data.id,title:'Configured official target',platform:'X',kind:'SOCIAL_INTERACTION',rewardWei:'1',policyReviewed:true,verification:{type:'MANUAL',instructions:'This external reward mission must remain unpublished.',minLength:20}});
+  assert.equal(task.status,201);assert.equal(task.data.officialAccountId,accounts[1]);assert.equal(task.data.targetUrl,b.defaultTargetUrl);
+  const changed={campaignId:campaign.data.id,title:'Explicit official target',platform:'X',kind:'SOCIAL_INTERACTION',officialAccountId:accounts[0],targetUrl:'https://x.com/fixture-one/status/2',rewardWei:'1',policyReviewed:true,verification:{type:'MANUAL',instructions:'This external reward mission must remain unpublished.',minLength:20}};
+  assert.equal((await api('admin/tasks/'+task.data.id,'PUT',changed)).status,200);
+  assert.equal((await api('admin/tasks/'+task.data.id+'/publish','POST')).status,403);
+  assert.equal((await api('admin/official-accounts/'+accounts[0]+'/disconnect','POST')).status,201);
+  assert.equal((await db.task.findUniqueOrThrow({where:{id:task.data.id}})).configurationRequired,true);
+  assert.equal((await api('admin/official-accounts/'+accounts[0], 'DELETE')).status,200);
+  assert.ok((await db.officialSocialAccount.findUniqueOrThrow({where:{id:accounts[0]}})).deletedAt);
+  assert.equal((await api('oauth/x/callback?state='+'0'.repeat(64)+'&code=fixture')).status,401);
+  assert.equal((await api('admin/settings/env/validate','POST')).status,201);
+  assert.equal((await api('admin/settings/reload','POST')).status,201);
+ }finally{
+  if(previousSetting){const {platform,...data}=previousSetting;await db.integrationSetting.update({where:{platform},data});}else await db.integrationSetting.deleteMany({where:{platform:'X'}});
+  if(previousCredential){const {id:credentialId,...data}=previousCredential;await db.credential.update({where:{id:credentialId},data});}else await db.credential.deleteMany({where:{scope:'SOCIAL_PLATFORM',ownerId:'X',kind:'OAUTH_CONFIG'}});
+  await db.task.deleteMany({where:{campaignId:{in:campaigns}}});await db.campaign.deleteMany({where:{id:{in:campaigns}}});
+  await db.officialSocialAccount.deleteMany({where:{id:{in:accounts}}});await db.credential.deleteMany({where:{ownerId:{in:networks}}});await db.blockchainNetwork.deleteMany({where:{id:{in:networks}}});
+  await db.socialPlatform.deleteMany({where:{key:'FIXTURE_'+id.toUpperCase()}});await db.auditEvent.deleteMany({where:{actor:admin.id}});await db.admin.delete({where:{id:admin.id}});await db.$disconnect();
+ }
+});
