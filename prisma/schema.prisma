@@ -1,0 +1,48 @@
+generator client {
+ provider = "prisma-client-js"
+}
+datasource db {
+ provider = "postgresql"
+}
+model User {
+ id String @id @default(cuid())
+ wallet String @unique
+ createdAt DateTime @default(now())
+ entries LedgerEntry[]
+}
+model Campaign {
+ id String @id @default(cuid())
+ title String
+ description String
+ status String @default("DRAFT")
+ startsAt DateTime?
+ endsAt DateTime?
+ createdAt DateTime @default(now())
+ tasks Task[]
+}
+model Task {
+ id String @id @default(cuid())
+ campaignId String
+ campaign Campaign @relation(fields:[campaignId],references:[id])
+ title String
+ platform String
+ kind String
+ enabled Boolean @default(false)
+ rewardWei Decimal @default(0) @db.Decimal(78,0)
+}
+model LedgerEntry {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id])
+ amountWei Decimal @db.Decimal(78,0)
+ idempotencyKey String @unique
+ reason String
+ createdAt DateTime @default(now())
+}
+model AuditEvent {
+ id String @id @default(cuid())
+ actor String
+ action String
+ resource String
+ createdAt DateTime @default(now())
+}

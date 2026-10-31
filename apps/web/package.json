@@ -1,0 +1,14 @@
+{
+  "name": "@rewards/web",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "build": "next build --webpack",
+    "start": "next start -H 127.0.0.1"
+  },
+  "dependencies": {
+    "next": "16.4.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  }
+}
