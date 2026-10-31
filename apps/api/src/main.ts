@@ -14,6 +14,8 @@ class Services {
  async health() {
   try {
    await this.db.$queryRaw`SELECT 1`;
+   await this.db.campaign.count();
+   await this.db.ledgerEntry.count();
    await this.redis.ping();
    const heartbeat=await this.redis.get('worker:heartbeat');
    const worker=!!heartbeat && Date.now()-Number(heartbeat)<45000;

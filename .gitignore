@@ -26,3 +26,5 @@ packages/contracts/out/
 packages/contracts/cache/
 .acme/
 .runtime/
+
+!prisma/migrations/**/*.sql
