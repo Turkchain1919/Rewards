@@ -55,8 +55,11 @@ try:
  shutil.copyfile(test/'infrastructure/nginx/rewards.conf',nginx)
  run(['nginx','-t'],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
  run(['systemctl','reload','nginx'])
- run(['curl','--fail','--silent','--show-error','--max-time','20','https://rewards.turkscan.com/api/health'],stdout=subprocess.DEVNULL)
- run(['curl','--fail','--silent','--show-error','--max-time','20','https://rewards.turkscan.com/'],stdout=subprocess.DEVNULL)
+ for attempt in range(20):
+  probes=[subprocess.run(['curl','--fail','--silent','--show-error','--max-time','5',url],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode for url in ['https://rewards.turkscan.com/api/health','https://rewards.turkscan.com/']]
+  if probes==[0,0]:break
+  time.sleep(1)
+ else:raise RuntimeError('Public TLS/health failed after reload grace period')
  if previous:
   prev=prod/'previous'
   if prev.is_symlink():prev.unlink()
@@ -71,7 +74,7 @@ except Exception:
  else:run(['systemctl','stop','rewards-prod-api','rewards-prod-web','rewards-prod-worker'])
  raise
 finally:
- report={'git_commit_sha':sha,'release_version':'0.1.0','deployment_date':datetime.datetime.now(datetime.timezone.utc).isoformat(),'deployment_status':status,'build_result':'passed','test_result':'passed','database_migration_version':'202610310001_foundation','production_health_status':status,'previous_release':previous,'github_status':'pending'}
+ report={'git_commit_sha':sha,'release_version':json.loads((test/'package.json').read_text())['version'],'deployment_date':datetime.datetime.now(datetime.timezone.utc).isoformat(),'deployment_status':status,'build_result':'passed','test_result':'passed','database_migration_version':'202610310001_foundation','production_health_status':status,'previous_release':previous,'github_status':'pending'}
  manifest.parent.mkdir(exist_ok=True)
  tmp=manifest.with_suffix('.tmp');tmp.write_text(json.dumps(report,indent=2)+'\n');os.replace(tmp,manifest)
 print('Production healthy at '+sha)

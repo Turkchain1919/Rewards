@@ -18,7 +18,7 @@ git fetch git@github.com:Turkchain1919/Rewards.git main
 git merge-base --is-ancestor FETCH_HEAD "$sha"
 git push git@github.com:Turkchain1919/Rewards.git "$sha:refs/heads/main"
 tag="v0.1.0-${sha:0:8}"
-git tag "$tag" "$sha"
+if git rev-parse "$tag" >/dev/null 2>&1; then test "$(git rev-parse "$tag")" = "$sha"; else git tag "$tag" "$sha"; fi
 git push git@github.com:Turkchain1919/Rewards.git "refs/tags/$tag"
 test "$(git ls-remote git@github.com:Turkchain1919/Rewards.git refs/heads/main | cut -f1)" = "$sha"
 python3 - "$PROD/.runtime/deployment.json" <<'PY'
