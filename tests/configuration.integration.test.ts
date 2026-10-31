@@ -65,7 +65,7 @@ test('real central configuration, single-chain lock, social targets and credenti
   await db.authSession.update({where:{id:digest(token)},data:{createdAt:new Date(Date.now()-600000)}});
   assert.equal((await api('admin/social-api/X','POST',{credentials:{clientSecret:'replacement'},redirectUri:callback,enabled:true,mode:'oauth'})).status,403);
   await db.authSession.update({where:{id:digest(token)},data:{createdAt:new Date()}});
-  const audits=await db.auditEvent.findMany({where:{actor:admin.id}});assert.ok(audits.some(a=>a.action==='SOCIAL_API_CONFIGURATION_SAVE'));assert.ok(audits.some(a=>a.action==='HERO_GIF_PUBLISH'));assert.ok(!JSON.stringify(audits).includes(animatedGif.toString('base64'));assert.ok(!JSON.stringify(audits).includes(secret));
+  const audits=await db.auditEvent.findMany({where:{actor:admin.id}});assert.ok(audits.some(a=>a.action==='SOCIAL_API_CONFIGURATION_SAVE'));assert.ok(audits.some(a=>a.action==='HERO_GIF_PUBLISH'));assert.ok(!JSON.stringify(audits).includes(animatedGif.toString('base64')));assert.ok(!JSON.stringify(audits).includes(secret));
   const platform='FIXTURE_'+id.toUpperCase();assert.equal((await api('admin/social-platforms','POST',{key:platform,name:'Custom metadata connector'})).status,201);
   const b={platform:'X',accountType:'PROFILE',name:'Fixture one',username:'fixture',accountId:'10001',profileUrl:'https://x.com/fixture-one',defaultTargetUrl:'https://x.com/fixture-one/status/1',enabled:true};
   for(let i=0;i<2;i++){const a=await api('admin/official-accounts','POST',{...b,name:'Fixture '+i,accountId:String(10001+i)});assert.equal(a.status,201);accounts.push(a.data.id);}

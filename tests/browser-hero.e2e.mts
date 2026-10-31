@@ -4,7 +4,7 @@ import {createRequire} from 'node:module';
 import {execFileSync} from 'node:child_process';
 import {PrismaClient} from '@prisma/client';
 import {PrismaPg} from '@prisma/adapter-pg';
-const require=createRequire(import.meta.url),{chromium}=require('./browser-tools/node_modules/playwright');
+const require=createRequire(new URL('../.runtime/browser-tools/package.json',import.meta.url)),{chromium}=require('playwright');
 const db=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL})}),token=randomBytes(32).toString('hex'),id=createHash('sha256').update(token).digest('hex');
 const admin=await db.admin.create({data:{email:'hero-ui-'+randomBytes(7).toString('hex')+'@example.invalid',passwordHash:'unusable-fixture',role:'OWNER'}});
 await db.authSession.create({data:{id,adminId:admin.id,mfaVerified:true,expiresAt:new Date(Date.now()+3600000)}});const original=await db.heroVisual.findUnique({where:{id:'homepage'}}),browser=await chromium.launch({headless:true,args:['--no-sandbox']});
