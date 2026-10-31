@@ -9,4 +9,4 @@ case "$(realpath "$file")" in "$target/backups/"*.dump) ;; *) echo 'Invalid back
 echo 'Stop Rewards API and workers before restore; restore requires an empty dedicated database.'
 export PGPASSWORD
 PGPASSWORD="$(node -e 'console.log(new URL(process.env.DATABASE_URL).password)')"
-pg_restore -h 127.0.0.1 -U "rewards_${APP_ENV}" -d "rewards_${APP_ENV}" --no-owner --exit-on-error "$file"
+/usr/lib/postgresql/14/bin/pg_restore -h 127.0.0.1 -U "rewards_${APP_ENV}" -d "rewards_${APP_ENV}" --no-owner --exit-on-error "$file"
