@@ -74,7 +74,7 @@ except Exception:
  else:run(['systemctl','stop','rewards-prod-api','rewards-prod-web','rewards-prod-worker'])
  raise
 finally:
- report={'git_commit_sha':sha,'release_version':json.loads((test/'package.json').read_text())['version'],'deployment_date':datetime.datetime.now(datetime.timezone.utc).isoformat(),'deployment_status':status,'build_result':'passed','test_result':'passed','database_migration_version':'202610310001_foundation','production_health_status':status,'previous_release':previous,'github_status':'pending'}
+ report={'git_commit_sha':sha,'release_version':json.loads((test/'package.json').read_text())['version'],'deployment_date':datetime.datetime.now(datetime.timezone.utc).isoformat(),'deployment_status':status,'build_result':'passed','test_result':'passed','database_migration_version':sorted(p.name for p in (test/'prisma/migrations').iterdir() if p.is_dir())[-1],'production_health_status':status,'previous_release':previous,'github_status':'pending'}
  manifest.parent.mkdir(exist_ok=True)
  tmp=manifest.with_suffix('.tmp');tmp.write_text(json.dumps(report,indent=2)+'\n');os.replace(tmp,manifest)
 print('Production healthy at '+sha)

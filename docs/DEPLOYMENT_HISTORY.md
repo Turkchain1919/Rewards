@@ -7,3 +7,6 @@ Production revision 6f3e87265af413675daf50c00275eb47b36a187b served HTTPS200, da
 
 ## 0.1.1 release candidate
 Preserves the upstream README, retries HTTPS probes during graceful Nginx reload and uses matched PostgreSQL14 backup/restore binaries. Follow the deployment manifest for this release's final outcome. No force push is permitted.
+
+## Phase2 0.2.0 — authentication release
+Adds secure admin authentication and signed user wallet authentication without replacing the existing infrastructure. The migration adds Admin/AuthSession tables and an optional profile name; the previous read-only application remains schema-compatible. Final deployed SHA and gate results are in rewards/.runtime/deployment.json.

@@ -38,6 +38,12 @@ for platform in ['X','TELEGRAM','FACEBOOK','INSTAGRAM','YOUTUBE','TIKTOK']:
 values.setdefault('TELEGRAM_BOT_TOKEN','')
 values.setdefault('WALLETCONNECT_PROJECT_ID','')
 values.setdefault('ADMIN_WALLETS','')
+for name in ['DATA_ENCRYPTION_KEY','ADMIN_BOOTSTRAP_TOKEN']:
+ values.setdefault(name,secrets.token_hex(32))
+runtime=root/'.runtime';runtime.mkdir(exist_ok=True)
+bootstrap=runtime/'admin-bootstrap.txt'
+if not bootstrap.exists():
+ bootstrap.write_text(values['ADMIN_BOOTSTRAP_TOKEN']+'\n');os.chmod(bootstrap,0o600)
 tmp=p.with_name('.env.setup.tmp')
 fd=os.open(tmp,os.O_CREAT|os.O_TRUNC|os.O_WRONLY,0o600)
 with os.fdopen(fd,'w') as f:f.write(''.join(k+'='+v+'\n' for k,v in values.items()))

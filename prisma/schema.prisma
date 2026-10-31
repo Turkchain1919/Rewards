@@ -7,6 +7,8 @@ datasource db {
 model User {
  id String @id @default(cuid())
  wallet String @unique
+ displayName String?
+ sessions AuthSession[]
  createdAt DateTime @default(now())
  entries LedgerEntry[]
 }
@@ -45,4 +47,33 @@ model AuditEvent {
  action String
  resource String
  createdAt DateTime @default(now())
+}
+
+enum AdminRole {
+ OWNER
+ ADMIN
+ REVIEWER
+}
+model Admin {
+ id String @id @default(cuid())
+ email String @unique
+ passwordHash String
+ role AdminRole @default(REVIEWER)
+ enabled Boolean @default(true)
+ totpEncrypted String?
+ lastTotpStep Int @default(-1)
+ createdAt DateTime @default(now())
+ sessions AuthSession[]
+}
+model AuthSession {
+ id String @id
+ userId String?
+ user User? @relation(fields:[userId],references:[id],onDelete:Cascade)
+ adminId String?
+ admin Admin? @relation(fields:[adminId],references:[id],onDelete:Cascade)
+ mfaVerified Boolean @default(false)
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+ @@index([expiresAt])
+ @@index([adminId])
 }
