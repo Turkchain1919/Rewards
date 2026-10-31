@@ -1,4 +1,4 @@
-import {Body,Controller,Get,Post,Delete,Param,Req,Res,Injectable,UnauthorizedException,ForbiddenException,ConflictException,HttpException} from '@nestjs/common';
+import {Body,Controller,Get,Post,Patch,Delete,Param,Req,Res,Injectable,UnauthorizedException,ForbiddenException,ConflictException,HttpException} from '@nestjs/common';
 import type {Request,Response} from 'express';
 import {randomBytes} from 'node:crypto';
 import {getAddress,verifyMessage} from 'ethers';
@@ -121,6 +121,21 @@ export class AdminAuthController {
  @Get('sessions')async sessions(@Req()req:Request){const {admin,session}=await this.auth.admin(req);const rows=await this.auth.data.db.authSession.findMany({where:{adminId:admin.id,expiresAt:{gt:new Date()}},select:{id:true,createdAt:true,expiresAt:true,mfaVerified:true}});return rows.map(s=>({...s,current:s.id===session.id}));}
  @Delete('sessions/:id')async revoke(@Param('id')id:string,@Req()req:Request){origin(req);const {admin}=await this.auth.admin(req);await this.auth.data.db.authSession.deleteMany({where:{id,adminId:admin.id}});return {ok:true};}
  @Post('logout')async logout(@Req()req:Request,@Res({passthrough:true})res:Response){origin(req);await this.auth.data.db.authSession.deleteMany({where:{id:digest(readCookie(req,'admin'))}});cookie(res,'admin','',0);return {ok:true};}
+ @Post('password')async password(@Body()body:unknown,@Req()req:Request,@Res({passthrough:true})res:Response){
+  origin(req);const {admin}=await this.auth.admin(req);await this.auth.limit(req,'password:'+admin.id,5);
+  const b=parse(z.object({currentPassword:z.string().max(128),newPassword:passwordSchema}).strict(),body);
+  if(!await verifyPassword(b.currentPassword,admin.passwordHash))throw new UnauthorizedException('Password rejected');
+  const passwordHash=await hashPassword(b.newPassword);
+  await this.auth.data.db.$transaction(async tx=>{await tx.admin.update({where:{id:admin.id},data:{passwordHash}});await tx.authSession.deleteMany({where:{adminId:admin.id}});await tx.auditEvent.create({data:{actor:admin.id,action:'ADMIN_PASSWORD_CHANGE',resource:admin.id}});});
+  await this.auth.issue(res,'admin',admin.id,true);return {ok:true};
+ }
+ @Patch('accounts/:id')async updateAccount(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){
+  origin(req);const {admin}=await this.auth.admin(req,['OWNER']);
+  const b=parse(z.object({role:z.enum(['ADMIN','REVIEWER']),enabled:z.boolean()}).strict(),body);
+  const target=await this.auth.data.db.admin.findUnique({where:{id}});
+  if(!target||target.role==='OWNER'||target.id===admin.id)throw new ForbiddenException('Owner account cannot be changed here');
+  await this.auth.data.db.$transaction(async tx=>{await tx.admin.update({where:{id},data:b});await tx.authSession.deleteMany({where:{adminId:id}});await tx.auditEvent.create({data:{actor:admin.id,action:'ADMIN_ROLE_UPDATE',resource:id}});});return {ok:true};
+ }
  @Get('accounts')async accounts(@Req()req:Request){await this.auth.admin(req,['OWNER']);return this.auth.data.db.admin.findMany({select:{id:true,email:true,role:true,enabled:true,createdAt:true}});}
  @Post('accounts')async createAccount(@Body()body:unknown,@Req()req:Request){
   origin(req);const {admin}=await this.auth.admin(req,['OWNER']);

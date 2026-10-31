@@ -10,3 +10,9 @@ Preserves the upstream README, retries HTTPS probes during graceful Nginx reload
 
 ## Phase2 0.2.0 — authentication release
 Adds secure admin authentication and signed user wallet authentication without replacing the existing infrastructure. The migration adds Admin/AuthSession tables and an optional profile name; the previous read-only application remains schema-compatible. Final deployed SHA and gate results are in rewards/.runtime/deployment.json.
+
+## 0.2.0 verified production
+Commit 29279e350ed4a0bb56304d46ce456447ca00d163 deployed and synchronized to GitHub main. 8 application tests, 10 Foundry tests, TypeScript, lint, build, security audit and migration parity passed. Initial owner setup remains private to the owner.
+
+## 0.3.0 administration/task/ledger release
+Additive migrations introduce budgets, submissions, ledger states and transition events with budget bounds. Previous auth release remains schema-compatible. Current outcome/SHA is recorded in the deployment manifest after checks.

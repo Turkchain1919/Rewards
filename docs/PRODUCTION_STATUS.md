@@ -3,3 +3,5 @@ Public production: https://rewards.turkscan.com . Exact deployed SHA, health and
 Last verified Phase1 commit: 3d378d5eee3a0ee213dcc206a64359efc30f8d5f.
 Phase2 authentication release adds admin setup, password/TOTP/role/session controls and signed user wallet login. Production owner setup is intentionally unclaimed until performed with the protected bootstrap secret; no default password exists.
 All social credentials remain absent. Claims stay paused; no mainnet vault, signer or funding is configured.
+
+Task/ledger release0.3.0 adds real administration and user mission workflows. No demo users, fake campaigns, fabricated balances or production signer are seeded. API credentials remain absent. Earned balances represent platform liabilities, not confirmation that the native vault is funded.

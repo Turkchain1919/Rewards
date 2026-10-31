@@ -1,6 +1,6 @@
 {
   "name": "turkchain-social-rewards",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "workspaces": [
     "apps/*"
@@ -9,7 +9,7 @@
     "build": "npm run build -w @rewards/api && npm run build -w @rewards/web",
     "typecheck": "tsc -p apps/api/tsconfig.json --noEmit && tsc -p apps/web/tsconfig.json --noEmit",
     "lint": "eslint apps tests",
-    "test": "tsx --test tests/*.test.ts",
+    "test": "tsx --test --test-concurrency=1 tests/*.test.ts",
     "db:generate": "prisma generate",
     "db:deploy": "prisma migrate deploy"
   },

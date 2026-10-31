@@ -10,6 +10,7 @@ model User {
  displayName String?
  sessions AuthSession[]
  createdAt DateTime @default(now())
+ submissions Submission[]
  entries LedgerEntry[]
 }
 model Campaign {
@@ -20,6 +21,9 @@ model Campaign {
  startsAt DateTime?
  endsAt DateTime?
  createdAt DateTime @default(now())
+ budgetWei Decimal @default(0) @db.Decimal(78,0)
+ allocatedWei Decimal @default(0) @db.Decimal(78,0)
+ rewards LedgerEntry[]
  tasks Task[]
 }
 model Task {
@@ -30,6 +34,9 @@ model Task {
  platform String
  kind String
  enabled Boolean @default(false)
+ policyReviewed Boolean @default(false)
+ verification Json?
+ submissions Submission[]
  rewardWei Decimal @default(0) @db.Decimal(78,0)
 }
 model LedgerEntry {
@@ -39,6 +46,12 @@ model LedgerEntry {
  amountWei Decimal @db.Decimal(78,0)
  idempotencyKey String @unique
  reason String
+ status LedgerStatus @default(AVAILABLE)
+ campaignId String?
+ campaign Campaign? @relation(fields:[campaignId],references:[id])
+ submissionId String? @unique
+ submission Submission? @relation(fields:[submissionId],references:[id])
+ events LedgerEvent[]
  createdAt DateTime @default(now())
 }
 model AuditEvent {
@@ -76,4 +89,42 @@ model AuthSession {
  createdAt DateTime @default(now())
  @@index([expiresAt])
  @@index([adminId])
+}
+
+enum LedgerStatus {
+ PENDING
+ AVAILABLE
+ RESERVED
+ CLAIMED
+ REJECTED
+}
+enum SubmissionStatus {
+ PENDING
+ APPROVED
+ REJECTED
+}
+model Submission {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id])
+ taskId String
+ task Task @relation(fields:[taskId],references:[id])
+ proof String
+ status SubmissionStatus @default(PENDING)
+ reviewNote String?
+ reviewedAt DateTime?
+ createdAt DateTime @default(now())
+ reward LedgerEntry?
+ @@unique([userId,taskId])
+}
+model LedgerEvent {
+ id String @id @default(cuid())
+ ledgerId String
+ ledger LedgerEntry @relation(fields:[ledgerId],references:[id])
+ fromStatus LedgerStatus?
+ toStatus LedgerStatus
+ actor String
+ reason String
+ createdAt DateTime @default(now())
+ @@index([ledgerId])
 }

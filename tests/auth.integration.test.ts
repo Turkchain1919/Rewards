@@ -10,7 +10,7 @@ import {digest,hashPassword} from '../apps/api/src/security';
 test('admin bootstrap, MFA replay defense, roles, sessions and browser-bound wallet sign-in',{skip:process.env.RUN_INTEGRATION!=='true'},async()=>{
  assert.equal(process.env.APP_ENV,'test');
  const db=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL,max:3})}),redis=new Redis(process.env.REDIS_URL!);
- const email='phase2-'+randomBytes(5).toString('hex')+'@example.invalid',reviewerEmail='reviewer-'+email,password=randomBytes(24).toString('hex');
+ const email='phase2-'+randomBytes(5).toString('hex')+'@example.invalid',reviewerEmail='reviewer-'+email;let password=randomBytes(24).toString('hex');
  const wallet=Wallet.createRandom(),jar=new Map<string,string>(),userJar=new Map<string,string>(),reviewerJar=new Map<string,string>();
  const base='http://127.0.0.1:'+process.env.API_PORT;
  async function call(path:string,method='GET',body?:unknown,cookies=jar,requestOrigin=process.env.APP_URL){
@@ -43,6 +43,12 @@ test('admin bootstrap, MFA replay defense, roles, sessions and browser-bound wal
   const revCode=new OTPAuth.TOTP({secret:OTPAuth.Secret.fromBase32(rev.data.secret as string)}).generate();
   assert.equal((await call('admin/mfa/verify','POST',{code:revCode},reviewerJar)).r.status,201);
   assert.equal((await call('admin/accounts','GET',undefined,reviewerJar)).r.status,403);
+  const reviewerAccount=await db.admin.findUniqueOrThrow({where:{email:reviewerEmail}});
+  assert.equal((await call('admin/accounts/'+owner.id,'PATCH',{role:'ADMIN',enabled:false})).r.status,403);
+  assert.equal((await call('admin/accounts/'+reviewerAccount.id,'PATCH',{role:'REVIEWER',enabled:false})).r.status,200);
+  assert.equal((await call('admin/me','GET',undefined,reviewerJar)).r.status,401);
+  assert.equal((await call('admin/password','POST',{currentPassword:password,newPassword:password+'-updated'})).r.status,201);
+  password+='-updated';
   const ownerCookie=new Map(jar),secondBrowser=new Map<string,string>();
   assert.equal((await call('admin/login','POST',{email,password},secondBrowser)).r.status,201);
   assert.equal((await call('admin/mfa/verify','POST',{code},secondBrowser)).r.status,401);
