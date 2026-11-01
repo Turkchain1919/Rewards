@@ -48,7 +48,7 @@ export default function SocialManagement({ role }: {
         name: string;
     }[]>>({});
     async function api(path: string, method = 'GET', body?: unknown) { const r = await fetch('/api/admin/' + path, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }); const d = await r.json(); if (!r.ok)
-        throw new Error(d.message || 'İşlem tamamlanamadı'); return d; }
+        throw new Error([d.message || 'İşlem tamamlanamadı', ...(Array.isArray(d.errors) ? d.errors.map((x: {field?: string; message?: string}) => (x.field ? x.field + ': ' : '') + (x.message || 'Geçersiz değer')) : [])].join(' — ')); return d; }
     async function load() { const [p, a, r] = await Promise.all([api('integrations'), api('official-accounts'), api('social-platforms')]); setPlatforms(p); setAccounts(a); setRegistry(r); }
     useEffect(() => { void load().catch(e => setError(e.message)); }, []);
     async function act(fn: () => Promise<unknown>) { setBusy(true); setError(''); setMessage(''); try {

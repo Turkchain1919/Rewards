@@ -11,8 +11,18 @@ import {officialPlatforms,officialAccount,safeTarget} from './social-config';
 import {Platform,TokenProfile,configuration,authorizationUrl} from './providers';
 import {telegramBotChat} from './telegram-verifier';
 import {origin,parse,digest,encrypt,decrypt,cookie} from './security';
-const url=z.string().max(2048).refine(v=>!v||!!safeTarget(v));
-export const officialInput=z.object({platform:z.string().regex(/^[A-Z][A-Z0-9_]{0,39}$/),accountType:z.enum(['PROFILE','PAGE','CHANNEL','GROUP','BOT','GUILD','ORGANIZATION','REPOSITORY']).default('PROFILE'),name:z.string().trim().min(2).max(100),username:z.string().max(100).default(''),accountId:z.string().max(200).default(''),profileUrl:url.default(''),defaultTargetUrl:url.default(''),enabled:z.boolean().default(false)}).strict();
+const url=z.string().max(2048);
+const telegramTarget=(v:string)=>/^-?[0-9]{1,24}$/.test(v)||/^@?[A-Za-z0-9_]{5,32}$/.test(v);
+export const officialInput=z.object({platform:z.string().regex(/^[A-Z][A-Z0-9_]{0,39}$/),accountType:z.enum(['PROFILE','PAGE','CHANNEL','GROUP','BOT','GUILD','ORGANIZATION','REPOSITORY']).default('PROFILE'),name:z.string().trim().min(2).max(100),username:z.string().max(100).default(''),accountId:z.string().max(200).default(''),profileUrl:url.default(''),defaultTargetUrl:url.default(''),enabled:z.boolean().default(false)}).strict().superRefine((v,ctx)=>{
+ if(v.profileUrl&&!safeTarget(v.profileUrl))ctx.addIssue({code:'custom',path:['profileUrl'],message:'Enter a safe HTTPS profile URL.'});
+ if(v.defaultTargetUrl&&!safeTarget(v.defaultTargetUrl)&&!(v.platform==='TELEGRAM'&&telegramTarget(v.defaultTargetUrl)))ctx.addIssue({code:'custom',path:['defaultTargetUrl'],message:'Enter a safe HTTPS URL or a Telegram chat ID or username.'});
+ if(v.platform==='TELEGRAM'&&/^-?[0-9]{1,24}$/.test(v.defaultTargetUrl)&&!v.username&&!v.profileUrl)ctx.addIssue({code:'custom',path:['defaultTargetUrl'],message:'A public Telegram username or profile URL is required to create a task link.'});
+}).transform(v=>{
+ if(v.platform!=='TELEGRAM'||!v.defaultTargetUrl||safeTarget(v.defaultTargetUrl))return v;
+ const candidate=/^-?[0-9]{1,24}$/.test(v.defaultTargetUrl)?(v.username||v.profileUrl):v.defaultTargetUrl;
+ const username=candidate.replace(/^@/,'').replace(/^https:\/\/t\.me\//i,'').replace(/\/$/,'');
+ return {...v,defaultTargetUrl:/^[A-Za-z0-9_]{5,32}$/.test(username)?'https://t.me/'+username:v.defaultTargetUrl};
+});
 @Injectable()
 export class OfficialAccountsService {
  constructor(readonly data:DataService,readonly settings:IntegrationSettings,readonly secrets:SecretStore){}

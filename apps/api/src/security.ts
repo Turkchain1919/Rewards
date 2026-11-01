@@ -17,7 +17,14 @@ export function decrypt(value:string){
  const c=createDecipheriv('aes-256-gcm',key,data.subarray(0,12));c.setAAD(Buffer.from(process.env.APP_ENV!));c.setAuthTag(data.subarray(-16));
  return Buffer.concat([c.update(data.subarray(12,-16)),c.final()]).toString('utf8');
 }
-export function parse<T extends z.ZodType>(schema:T,body:unknown):z.infer<T>{const result=schema.safeParse(body);if(!result.success)throw new BadRequestException('Invalid request fields');return result.data;}
+export function parse<T extends z.ZodType>(schema:T,body:unknown):z.infer<T>{
+ const result=schema.safeParse(body);
+ if(!result.success){
+  const errors=result.error.issues.map(issue=>({field:issue.path.map(part=>String(part)).join('.')||'request',message:issue.code==='custom'?issue.message:'Check this field’s format and value.'}));
+  throw new BadRequestException({code:'VALIDATION_ERROR',message:'Invalid request fields',errors});
+ }
+ return result.data;
+}
 export function origin(req:Request){if(req.headers.origin!==new URL(process.env.APP_URL!).origin)throw new ForbiddenException('Origin rejected');}
 export function cookieName(kind:string){return 'rewards_'+process.env.APP_ENV+'_'+kind;}
 export function readCookie(req:Request,kind:string){const name=cookieName(kind)+'=';return (req.headers.cookie||'').split(';').map(x=>x.trim()).find(x=>x.startsWith(name))?.slice(name.length)||'';}

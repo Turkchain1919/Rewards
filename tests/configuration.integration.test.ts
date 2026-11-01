@@ -69,12 +69,17 @@ test('real central configuration, single-chain lock, social targets and credenti
   const platform='FIXTURE_'+id.toUpperCase();assert.equal((await api('admin/social-platforms','POST',{key:platform,name:'Custom metadata connector'})).status,201);
   const b={platform:'X',accountType:'PROFILE',name:'Fixture one',username:'fixture',accountId:'10001',profileUrl:'https://x.com/fixture-one',defaultTargetUrl:'https://x.com/fixture-one/status/1',enabled:true};
   for(let i=0;i<2;i++){const a=await api('admin/official-accounts','POST',{...b,name:'Fixture '+i,accountId:String(10001+i)});assert.equal(a.status,201);accounts.push(a.data.id);}
+  const telegram={platform:'TELEGRAM',accountType:'GROUP',name:'Turkchain 1919',username:'Turkchain1919',accountId:'-1003676977941',profileUrl:'https://t.me/Turkchain1919',defaultTargetUrl:'-1003676977941',enabled:true};
+  const tg=await api('admin/official-accounts','POST',telegram);assert.equal(tg.status,201);accounts.push(tg.data.id);
+  assert.equal(tg.data.accountId,'-1003676977941');assert.equal(tg.data.defaultTargetUrl,'https://t.me/Turkchain1919');
+  assert.ok((await api('admin/official-accounts')).data.some((a:{id:string})=>a.id===tg.data.id));
+  const invalid=await api('admin/official-accounts','POST',{...telegram,profileUrl:'javascript:alert(1)',defaultTargetUrl:'https://evil.example'});assert.equal(invalid.status,400);assert.ok(invalid.data.errors.some((e:{field:string})=>e.field==='profileUrl'));assert.ok(!invalid.text.includes('javascript:alert'));
   assert.equal((await api('admin/official-accounts/'+accounts[1]+'/default','POST')).status,201);
   const campaign=await api('admin/campaigns','POST',{title:'Config fixture '+id,description:'Isolated target configuration test campaign.',budgetWei:'100'});assert.equal(campaign.status,201);campaigns.push(campaign.data.id);
   const task=await api('admin/tasks','POST',{campaignId:campaign.data.id,title:'Configured official target',platform:'X',kind:'SOCIAL_INTERACTION',rewardWei:'1',policyReviewed:true,verification:{type:'MANUAL',instructions:'This external reward mission must remain unpublished.',minLength:20}});
   assert.equal(task.status,201);assert.equal(task.data.officialAccountId,accounts[1]);assert.equal(task.data.targetUrl,b.defaultTargetUrl);
   const changed={campaignId:campaign.data.id,title:'Explicit official target',platform:'X',kind:'SOCIAL_INTERACTION',officialAccountId:accounts[0],targetUrl:'https://x.com/fixture-one/status/2',rewardWei:'1',policyReviewed:true,verification:{type:'MANUAL',instructions:'This external reward mission must remain unpublished.',minLength:20}};
-  assert.equal((await api('admin/tasks/'+task.data.id,'PUT',changed)).status,200);
+  const changedResult=await api('admin/tasks/'+task.data.id,'PUT',changed);assert.equal(changedResult.status,200,changedResult.text);
   assert.equal((await api('admin/tasks/'+task.data.id+'/publish','POST')).status,403);
   assert.equal((await api('admin/official-accounts/'+accounts[0]+'/disconnect','POST')).status,201);
   assert.equal((await db.task.findUniqueOrThrow({where:{id:task.data.id}})).configurationRequired,true);

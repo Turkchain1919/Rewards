@@ -4,7 +4,15 @@ import type {Response,Request} from 'express';
 export class SafeErrors implements ExceptionFilter {
  catch(error:unknown,host:ArgumentsHost){
   const context=host.switchToHttp(),res=context.getResponse<Response>(),req=context.getRequest<Request>();
-  if(error instanceof HttpException){res.status(error.getStatus()).json({statusCode:error.getStatus(),message:error.message});return;}
+  if(error instanceof HttpException){
+   const response=error.getResponse();
+   if(response&&typeof response==='object'&&(response as {code?:unknown}).code==='VALIDATION_ERROR'){
+    const value=response as {errors?:unknown};
+    res.status(error.getStatus()).json({statusCode:error.getStatus(),code:'VALIDATION_ERROR',message:'Invalid request fields',errors:Array.isArray(value.errors)?value.errors:[]});return;
+   }
+   const message=typeof response==='string'?response:response&&typeof response==='object'&&typeof (response as {message?:unknown}).message==='string'?(response as {message:string}).message:error.message;
+   res.status(error.getStatus()).json({statusCode:error.getStatus(),message});return;
+  }
   const code=(error as {code?:string})?.code;
   const status=code==='P2002'||code==='P2034'?409:code==='P2025'?404:500;
   if(status===500)console.error('API failure',{path:req.path,code:typeof code==='string'?code:'INTERNAL'});

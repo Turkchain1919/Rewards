@@ -6,7 +6,7 @@ import {EngineService,taskInput} from '../apps/api/src/engine';
 import type {DataService} from '../apps/api/src/data';
 import type {ConfigurationService} from '../apps/api/src/configuration';
 import type {IntegrationSettings} from '../apps/api/src/integration-settings';
-import {OfficialAccountsService} from '../apps/api/src/official-accounts';
+import {OfficialAccountsService,officialInput} from '../apps/api/src/official-accounts';
 import type {SecretStore} from '../apps/api/src/configuration';
 test('Telegram membership missions publish, appear to users and credit Available once',{skip:process.env.RUN_INTEGRATION!=='true'},async()=>{
  assert.equal(process.env.APP_ENV,'test');assert.match(process.env.DATABASE_URL||'',/rewards_test/);
@@ -16,13 +16,18 @@ test('Telegram membership missions publish, appear to users and credit Available
  const admin=await db.admin.create({data:{email:adminId+'@example.invalid',passwordHash:'fixture',role:'OWNER'}});
  const member=await db.user.create({data:{wallet:'0x'+nonce.padEnd(40,'0').slice(0,40)}});
  const nonmember=await db.user.create({data:{wallet:'0x'+('f'+nonce).padEnd(40,'1').slice(0,40)}});
- const account=await db.officialSocialAccount.create({data:{platform:'TELEGRAM',accountType:'GROUP',name:'Fixture Telegram group',username:'fixture_channel',accountId:'@fixture_channel',profileUrl:'https://t.me/fixture_channel',defaultTargetUrl:'https://t.me/fixture_channel',enabled:true,connectionStatus:'UNCONFIGURED'}});
+ await db.socialPlatform.upsert({where:{key:'TELEGRAM'},create:{key:'TELEGRAM',name:'Telegram',connector:'TELEGRAM'},update:{}});
  let tokenAvailable=true;
  const settings={list:async()=>[{platform:'TELEGRAM',enabled:true}],secretValues:async()=>tokenAvailable?{botToken:'fixture-token'}:{}} as unknown as IntegrationSettings;
  const config={selected:async()=>network} as unknown as ConfigurationService;
  const engine=new EngineService({db} as unknown as DataService,config,settings);
  const official=new OfficialAccountsService({db} as unknown as DataService,settings,{} as SecretStore);
- const connectionFetch:typeof fetch=async(input)=>{const method=new URL(String(input)).pathname.split('/').pop();const result=method==='getMe'?{id:9001,username:'fixture_bot'}:method==='getChat'?{id:-1001234567890,type:'supergroup',title:'Fixture Telegram',username:'fixture_channel'}:{status:'administrator'};return new Response(JSON.stringify({ok:true,result}),{status:200});};
+ const submitted={platform:'TELEGRAM',accountType:'GROUP',name:'Turkchain 1919',username:'Turkchain1919',accountId:'-1003676977941',profileUrl:'https://t.me/Turkchain1919',defaultTargetUrl:'-1003676977941',enabled:true};
+ const parsed=officialInput.parse(submitted);
+ assert.equal(parsed.accountId,'-1003676977941');assert.equal(parsed.defaultTargetUrl,'https://t.me/Turkchain1919');
+ const veryLargeId='-100000000000000000000001',largeParsed=officialInput.parse({...submitted,accountId:veryLargeId,defaultTargetUrl:'@Turkchain1919'});assert.equal(largeParsed.accountId,veryLargeId);assert.equal(largeParsed.defaultTargetUrl,'https://t.me/Turkchain1919');
+ const account=await official.save(admin.id,parsed);
+ const connectionFetch:typeof fetch=async(input)=>{const requestUrl=new URL(String(input)),method=requestUrl.pathname.split('/').pop();if(method==='getChat')assert.equal(requestUrl.searchParams.get('chat_id'),'-1003676977941');const result=method==='getMe'?{id:9001,username:'fixture_bot'}:method==='getChat'?{id:-1001234567890,type:'supergroup',title:'Fixture Telegram',username:'fixture_channel'}:{status:'administrator'};return new Response(JSON.stringify({ok:true,result}),{status:200});};
  const campaign=await engine.saveCampaign(admin.id,{title:'Telegram fixture '+nonce,description:'Test only Telegram membership and Available ledger accounting.',budgetWei:'20000000000000000000'});
  let taskId:string|undefined;
  try{
@@ -34,6 +39,7 @@ test('Telegram membership missions publish, appear to users and credit Available
   taskId=task.id;
   assert.equal(task.configurationRequired,false);assert.equal(task.officialAccountId,account.id);
   await engine.taskState(admin.id,task.id,true);
+  assert.ok(!(await engine.publicTasks(network.networkKey)).some(row=>row.id===task.id),'draft campaign keeps its published task hidden');
   await engine.campaignState(admin.id,campaign.id,'ACTIVE');
   const visible=await engine.publicTasks(network.networkKey);
   assert.ok(visible.some(row=>row.id===task.id),'published Telegram task should be in the public user task list');

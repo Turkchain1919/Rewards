@@ -14,9 +14,9 @@ async function telegramApi(token:string,method:string,params:Record<string,strin
 export async function telegramBotChat(token:string,target:string,expectedType:'GROUP'|'CHANNEL',fetcher:typeof fetch=fetch){
  if(!token||!(/^-?[0-9]{1,24}$/.test(target)||/^@[A-Za-z0-9_]{5,32}$/.test(target)))throw new Error('TELEGRAM_CONFIGURATION_INVALID');
  const bot=await telegramApi(token,'getMe',{},fetcher);
- if(typeof bot.id!=='number'||typeof bot.username!=='string')throw new Error('TELEGRAM_BOT_IDENTITY_INVALID');
+ if(typeof bot.id!=='number'||!Number.isSafeInteger(bot.id)||typeof bot.username!=='string')throw new Error('TELEGRAM_BOT_IDENTITY_INVALID');
  const chat=await telegramApi(token,'getChat',{chat_id:target},fetcher);
- if(typeof chat.id!=='number'||typeof chat.type!=='string')throw new Error('TELEGRAM_CHAT_INVALID');
+ if(typeof chat.id!=='number'||!Number.isSafeInteger(chat.id)||typeof chat.type!=='string')throw new Error('TELEGRAM_CHAT_INVALID');
  const allowed=expectedType==='CHANNEL'?chat.type==='channel':['group','supergroup'].includes(chat.type);
  if(!allowed)throw new Error('TELEGRAM_CHAT_TYPE_MISMATCH');
  const member=await telegramApi(token,'getChatMember',{chat_id:String(chat.id),user_id:String(bot.id)},fetcher);

@@ -12,3 +12,6 @@ Verified0.4.0 live:603fe9c46ddcdb7128d8916768ac96eb2f125816, healthy and synchro
 
 ## Hero visual management release candidate0.4.2
 OWNER-only homepage GIF upload/preview/publish/replace/enable/disable/remove implemented in TEST. GIF bytes and metadata persist in PostgreSQL; bounded content validation, audited operations, public current-image response, original design fallback and reduced-motion fallback are included. See HERO_VISUAL.md. Desktop/mobile browser persistence test, full test/build/security/release gates and production rollout pending.
+
+## 0.4.4 Telegram account validation and campaign publication
+The official Telegram account API now accepts the Supergroup Chat ID in the default-target field, retains account and chat identifiers as strings, and converts a numeric or @username target into a safe public t.me task link. HTTPS profile and target URL validation remains enforced; invalid inputs return sanitized field-specific errors. Telegram bot connect still verifies getChat and administrator status. Admin task-publish errors now show the safe server reason, and the campaigns view explains that an enabled task remains hidden until its campaign is also published. No reward accounting semantics changed; mainnet claims remain paused. Test suite and release health are recorded in the deployment manifest.
