@@ -12,3 +12,10 @@ test('wei arithmetic never uses floating point',()=>{
  assert.equal(validateReward('1000000000000000001'),1000000000000000001n);
  for(const n of ['-1','0','1.1','1e18','NaN',(2n**256n).toString()]) assert.throws(()=>validateReward(n));
 });
+
+test('only reviewed Telegram membership can use the automatic social verifier',()=>{
+ assert.equal(canEnableTask('TELEGRAM','SOCIAL_INTERACTION',true,{type:'TELEGRAM_MEMBERSHIP'}),true);
+ assert.equal(canEnableTask('TELEGRAM','SOCIAL_INTERACTION',true,{type:'MANUAL'}),false);
+ assert.equal(canEnableTask('X','SOCIAL_INTERACTION',true,{type:'TELEGRAM_MEMBERSHIP'}),false);
+ assert.equal(canEnableTask('TELEGRAM','SOCIAL_INTERACTION',false,{type:'TELEGRAM_MEMBERSHIP'}),false);
+});

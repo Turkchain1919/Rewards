@@ -25,3 +25,10 @@ See SOCIAL_API_CONFIGURATION.md and PORTABLE_CONFIGURATION.md. Exact release tes
 
 ## Hero visual management release candidate0.4.2
 OWNER-only homepage GIF upload/preview/publish/replace/enable/disable/remove implemented in TEST. GIF bytes and metadata persist in PostgreSQL; bounded content validation, audited operations, public current-image response, original design fallback and reduced-motion fallback are included. See HERO_VISUAL.md. Desktop/mobile browser persistence test, full test/build/security/release gates and production rollout pending.
+
+## Telegram membership mission (0.4.3 candidate)
+- Fixes task listing and publication for one narrow, verifiable Telegram task type. Admins can define/publish/stop it from Tasks; user dashboard offers Telegram linking and Bot API verification.
+- Task is only shown when campaign is active, official GROUP/CHANNEL target is connected, integration enabled, and an encrypted or environment bot token is present. Bot API membership success awards a single AVAILABLE native-unit ledger amount and atomically allocates campaign budget.
+- Generic social engagement remains denied. Mainnet claim/payout remains paused. See TELEGRAM_MEMBERSHIP_MISSIONS.md.
+- TEST full suite: 23 application tests including isolated PostgreSQL/Redis accounting and bot administrator validation, owner admin browser controls, 10 Foundry tests, lint, TypeScript, dependency audit, Prisma migrations, and optimized build passed; exact clean-commit release gate pending.
+- PRODUCTION encrypted Telegram bot/OAuth credentials are already configured and enabled; the configured bot was verified as administrator of the owner-provided public supergroup. There is not yet an official Telegram account row or active campaign/task. No production task or reward entry was created.

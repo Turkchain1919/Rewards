@@ -9,6 +9,7 @@ import {SecretStore} from './configuration';
 import {IntegrationSettings} from './integration-settings';
 import {officialPlatforms,officialAccount,safeTarget} from './social-config';
 import {Platform,TokenProfile,configuration,authorizationUrl} from './providers';
+import {telegramBotChat} from './telegram-verifier';
 import {origin,parse,digest,encrypt,decrypt,cookie} from './security';
 const url=z.string().max(2048).refine(v=>!v||!!safeTarget(v));
 export const officialInput=z.object({platform:z.string().regex(/^[A-Z][A-Z0-9_]{0,39}$/),accountType:z.enum(['PROFILE','PAGE','CHANNEL','GROUP','BOT','GUILD','ORGANIZATION','REPOSITORY']).default('PROFILE'),name:z.string().trim().min(2).max(100),username:z.string().max(100).default(''),accountId:z.string().max(200).default(''),profileUrl:url.default(''),defaultTargetUrl:url.default(''),enabled:z.boolean().default(false)}).strict();
@@ -57,6 +58,26 @@ export class OfficialAccountsService {
    await tx.auditEvent.create({data:{actor,action:'OFFICIAL_ACCOUNT_DEFAULT',resource:id}});
   });return {ok:true};
  }
+ async connectTelegram(id:string,actor:string,fetcher:typeof fetch=fetch){
+  const account=await this.data.db.officialSocialAccount.findUnique({where:{id}});
+  if(!account||account.deletedAt)throw new NotFoundException();
+  if(account.platform!=='TELEGRAM'||!['CHANNEL','GROUP'].includes(account.accountType))throw new BadRequestException('Telegram group or channel account required');
+  const settings=await this.settings.secretValues('TELEGRAM'),token=settings.botToken;
+  if(!token||!(await this.settings.list()).find(v=>v.platform==='TELEGRAM')?.enabled)throw new ServiceUnavailableException('Configure and enable the Telegram Bot API token first');
+  const target=account.accountId||account.username;
+  if(!target)throw new BadRequestException('Telegram chat ID or username required');
+  let verified;
+  try{verified=await telegramBotChat(token,target,account.accountType as 'GROUP'|'CHANNEL',fetcher);}catch{throw new ServiceUnavailableException('Telegram chat access or bot administrator verification failed');}
+  await this.data.db.$transaction(async tx=>{
+   await tx.$queryRawUnsafe('SELECT "id" FROM "OfficialSocialAccount" WHERE "id"=$1 FOR UPDATE',id);
+   const fresh=await tx.officialSocialAccount.findUniqueOrThrow({where:{id}});
+   if(fresh.deletedAt||fresh.version!==account.version)throw new ConflictException('Account configuration changed; retry connection');
+   await tx.officialSocialAccount.update({where:{id},data:{...verified,connectionStatus:'CONNECTED',lastSuccessAt:new Date(),lastError:null,metadataOverride:true,version:{increment:1}}});
+   await tx.task.updateMany({where:{officialAccountId:id,enabled:false},data:{configurationRequired:false}});
+   await tx.auditEvent.create({data:{actor,action:'OFFICIAL_ACCOUNT_CONNECTED',resource:id}});
+  });
+  return {ok:true,connected:true,account:{id,platform:'TELEGRAM',accountType:verified.accountType,name:verified.name,username:verified.username,accountId:verified.accountId,profileUrl:verified.profileUrl}};
+ }
  async acceptOAuth(id:string,actor:string,profile:TokenProfile,expectedVersion?:number,targetId?:string){
   const account=await this.data.db.officialSocialAccount.findUniqueOrThrow({where:{id}});
   if(account.deletedAt)throw new ConflictException('Account removed');
@@ -74,21 +95,14 @@ export class OfficialAccountsService {
    if(account.accountType==='REPOSITORY'?!data.permissions?.admin:data.state!=='active'||data.role!=='admin')throw new ForbiddenException('GitHub administrator permission required');
    targets=[{accountId:account.accountType==='REPOSITORY'?data.full_name||target:data.organization?.login||target,name:target,accountType:account.accountType,profileUrl:'https://github.com/'+target}];
   }
-  if(account.platform==='TELEGRAM'&&['CHANNEL','GROUP','BOT'].includes(account.accountType)){
+  if(account.platform==='TELEGRAM'&&['CHANNEL','GROUP'].includes(account.accountType)){
    const raw=await this.secrets.get('SOCIAL_PLATFORM','TELEGRAM','OAUTH_CONFIG');
    const config=raw?JSON.parse(raw) as Record<string,string>:{};
-   const botToken=config.botToken||process.env.TELEGRAM_BOT_TOKEN||'';
-   if(!botToken)throw new ForbiddenException('TELEGRAM_BOT_TOKEN and administrator permissions required');
-   const request=async(method:string,params:Record<string,string>={})=>{const r=await fetch('https://api.telegram.org/bot'+botToken+'/'+method+'?'+new URLSearchParams(params),{signal:AbortSignal.timeout(10000)});if(!r.ok)throw new ForbiddenException('Telegram Bot API permission required');const value=await r.json() as {ok:boolean;result:Record<string,unknown>};if(!value.ok)throw new ForbiddenException('Telegram Bot API permission required');return value.result;};
-   if(account.accountType==='BOT'){const bot=await request('getMe');if(account.accountId&&String(bot.id)!==account.accountId)throw new ConflictException('Bot identity mismatch');targets=[{accountId:String(bot.id),name:String(bot.username||bot.first_name),accountType:'BOT',profileUrl:'https://t.me/'+String(bot.username)}];}
-   else {
-    const target=account.accountId||account.username;if(!target)throw new BadRequestException('Telegram chat ID required');
-    const chatId=/^-?[0-9]+$/.test(target)||target.startsWith('@')?target:'@'+target;
-    const membership=await request('getChatMember',{chat_id:chatId,user_id:profile.accountId});
-    if(!['creator','administrator'].includes(String(membership.status)))throw new ForbiddenException('Telegram chat administrator permission required');
-    const chat=await request('getChat',{chat_id:chatId});
-    targets=[{accountId:String(chat.id),name:String(chat.title||account.name),accountType:account.accountType,profileUrl:account.profileUrl}];
-   }
+   const token=config.botToken||process.env.TELEGRAM_BOT_TOKEN||'';
+   if(!token)throw new ForbiddenException('TELEGRAM_BOT_TOKEN and administrator permissions required');
+   const target=account.accountId||account.username;if(!target)throw new BadRequestException('Telegram chat ID required');
+   const verified=await telegramBotChat(token,target,account.accountType as 'GROUP'|'CHANNEL');
+   targets=[{accountId:verified.accountId,name:verified.name,accountType:verified.accountType,profileUrl:verified.profileUrl}];
   }
   if(!targets)targets=[{accountId:profile.accountId,name:profile.name,accountType:account.accountType,profileUrl:account.profileUrl}];
   if(!targets.length)throw new ForbiddenException('Required account permissions were not granted');
@@ -107,6 +121,7 @@ export class OfficialAccountsService {
    if(fresh.deletedAt||fresh.version!==account.version)throw new ConflictException('Connection configuration changed');
    const credential=await this.secrets.write(tx,'OFFICIAL_ACCOUNT',id,'TOKENS',JSON.stringify(tokenData),actor);
    await tx.officialSocialAccount.update({where:{id},data:{accountId:selected.accountId,name:selected.name,profileUrl:selected.profileUrl||account.profileUrl,credentialId:credential.id,connectionStatus:'CONNECTED',lastSuccessAt:new Date(),lastError:null,metadataOverride:true,version:{increment:1}}});
+   await tx.task.updateMany({where:{officialAccountId:id,enabled:false},data:{configurationRequired:false}});
    await tx.auditEvent.create({data:{actor,action:'OFFICIAL_ACCOUNT_CONNECTED',resource:id}});
   });return {ok:true,selectionRequired:false};
  }
@@ -150,7 +165,9 @@ export class OfficialAccountsController {
  @Post('official-accounts/:id/connect')async connect(@Param('id')id:string,@Req()req:Request,@Res({passthrough:true})res:Response){
   origin(req);const {admin,session}=await this.manage(req);const a=await this.auth.data.db.officialSocialAccount.findUniqueOrThrow({where:{id}});
   if(a.deletedAt)throw new NotFoundException();
-  const platform=parse(z.enum(officialPlatforms),a.platform) as Platform,override=await this.accounts.settings.runtime(platform,'official'),c=configuration(platform,override);
+  const platform=parse(z.enum(officialPlatforms),a.platform) as Platform;
+  if(platform==='TELEGRAM'&&['CHANNEL','GROUP'].includes(a.accountType))return this.accounts.connectTelegram(id,admin.id);
+  const override=await this.accounts.settings.runtime(platform,'official'),c=configuration(platform,override);
   if(!c.ready)throw new ServiceUnavailableException('OAuth credentials, activation or app permissions missing');
   const state=randomBytes(32).toString('hex'),binder=randomBytes(32).toString('hex'),verifier=randomBytes(32).toString('base64url'),nonce=randomBytes(24).toString('hex');
   await this.auth.data.redis.set('oauth:'+digest(state),JSON.stringify({mode:'official',platform,officialAccountId:id,version:a.version,adminId:admin.id,sessionId:session.id,binder:digest(binder),verifier,nonce,fingerprint:digest(c.clientId+':'+c.redirect)}),'EX',300);

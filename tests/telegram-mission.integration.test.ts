@@ -1,0 +1,65 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {PrismaClient} from '@prisma/client';
+import {PrismaPg} from '@prisma/adapter-pg';
+import {EngineService,taskInput} from '../apps/api/src/engine';
+import type {DataService} from '../apps/api/src/data';
+import type {ConfigurationService} from '../apps/api/src/configuration';
+import type {IntegrationSettings} from '../apps/api/src/integration-settings';
+import {OfficialAccountsService} from '../apps/api/src/official-accounts';
+import type {SecretStore} from '../apps/api/src/configuration';
+test('Telegram membership missions publish, appear to users and credit Available once',{skip:process.env.RUN_INTEGRATION!=='true'},async()=>{
+ assert.equal(process.env.APP_ENV,'test');assert.match(process.env.DATABASE_URL||'',/rewards_test/);
+ const db=new PrismaClient({adapter:new PrismaPg({connectionString:process.env.DATABASE_URL,max:4})});
+ const nonce=Date.now().toString(36)+Math.random().toString(36).slice(2,9),adminId='telegram-test-'+nonce;
+ const network=await db.blockchainNetwork.findFirstOrThrow({where:{isActive:true}});
+ const admin=await db.admin.create({data:{email:adminId+'@example.invalid',passwordHash:'fixture',role:'OWNER'}});
+ const member=await db.user.create({data:{wallet:'0x'+nonce.padEnd(40,'0').slice(0,40)}});
+ const nonmember=await db.user.create({data:{wallet:'0x'+('f'+nonce).padEnd(40,'1').slice(0,40)}});
+ const account=await db.officialSocialAccount.create({data:{platform:'TELEGRAM',accountType:'GROUP',name:'Fixture Telegram group',username:'fixture_channel',accountId:'@fixture_channel',profileUrl:'https://t.me/fixture_channel',defaultTargetUrl:'https://t.me/fixture_channel',enabled:true,connectionStatus:'UNCONFIGURED'}});
+ let tokenAvailable=true;
+ const settings={list:async()=>[{platform:'TELEGRAM',enabled:true}],secretValues:async()=>tokenAvailable?{botToken:'fixture-token'}:{}} as unknown as IntegrationSettings;
+ const config={selected:async()=>network} as unknown as ConfigurationService;
+ const engine=new EngineService({db} as unknown as DataService,config,settings);
+ const official=new OfficialAccountsService({db} as unknown as DataService,settings,{} as SecretStore);
+ const connectionFetch:typeof fetch=async(input)=>{const method=new URL(String(input)).pathname.split('/').pop();const result=method==='getMe'?{id:9001,username:'fixture_bot'}:method==='getChat'?{id:-1001234567890,type:'supergroup',title:'Fixture Telegram',username:'fixture_channel'}:{status:'administrator'};return new Response(JSON.stringify({ok:true,result}),{status:200});};
+ const campaign=await engine.saveCampaign(admin.id,{title:'Telegram fixture '+nonce,description:'Test only Telegram membership and Available ledger accounting.',budgetWei:'20000000000000000000'});
+ let taskId:string|undefined;
+ try{
+  const connected=await official.connectTelegram(account.id,admin.id,connectionFetch);
+  assert.equal(connected.connected,true);assert.equal(connected.account.accountId,'-1001234567890');
+  const connectedAccount=await db.officialSocialAccount.findUniqueOrThrow({where:{id:account.id}});
+  assert.equal(connectedAccount.connectionStatus,'CONNECTED');
+  const task=await engine.saveTask(admin.id,taskInput.parse({campaignId:campaign.id,title:'Join fixture Telegram channel',platform:'TELEGRAM',kind:'SOCIAL_INTERACTION',rewardWei:'10000000000000000000',policyReviewed:true,officialAccountId:account.id,verification:{type:'TELEGRAM_MEMBERSHIP',instructions:'Join the configured Telegram channel and verify membership.'}}));
+  taskId=task.id;
+  assert.equal(task.configurationRequired,false);assert.equal(task.officialAccountId,account.id);
+  await engine.taskState(admin.id,task.id,true);
+  await engine.campaignState(admin.id,campaign.id,'ACTIVE');
+  const visible=await engine.publicTasks(network.networkKey);
+  assert.ok(visible.some(row=>row.id===task.id),'published Telegram task should be in the public user task list');
+  await db.socialAccount.create({data:{userId:member.id,provider:'TELEGRAM',providerAccountId:'987654321',accountName:'fixture-user',scopes:[]}});
+  await db.socialAccount.create({data:{userId:nonmember.id,provider:'TELEGRAM',providerAccountId:'123456789',accountName:'fixture-nonmember',scopes:[]}});
+  const joined:typeof fetch=async(input)=>{const url=new URL(String(input));assert.equal(url.searchParams.get('chat_id'),connectedAccount.accountId);assert.equal(url.searchParams.get('user_id'),'987654321');return new Response(JSON.stringify({ok:true,result:{status:'member'}}),{status:200});};
+  const credited=await engine.verifyTelegram(member.id,task.id,network.networkKey,joined);
+  assert.deepEqual(credited,{verified:true,alreadyProcessed:false,status:'APPROVED',reward:'10000000000000000000',ledgerStatus:'AVAILABLE'});
+  assert.equal((await engine.balances(member.id,network.networkKey)).AVAILABLE,'10000000000000000000');
+  const duplicate=await engine.verifyTelegram(member.id,task.id,network.networkKey,joined);
+  assert.equal(duplicate.alreadyProcessed,true);
+  assert.equal((await db.ledgerEntry.count({where:{userId:member.id,submissionId:{not:null}}})),1);
+  const left:typeof fetch=async()=>new Response(JSON.stringify({ok:true,result:{status:'left'}}),{status:200});
+  await assert.rejects(()=>engine.verifyTelegram(nonmember.id,task.id,network.networkKey,left),/Join the Telegram/);
+  assert.equal(await db.submission.count({where:{userId:nonmember.id,taskId:task.id}}),0);
+  tokenAvailable=false;
+  assert.deepEqual(await engine.publicTasks(network.networkKey),[]);
+ }finally{
+  const submissions=await db.submission.findMany({where:{taskId:taskId||'__none__'},select:{id:true}});
+  const ids=submissions.map(v=>v.id);
+  if(ids.length){const entries=await db.ledgerEntry.findMany({where:{submissionId:{in:ids}},select:{id:true}});await db.ledgerEvent.deleteMany({where:{ledgerId:{in:entries.map(v=>v.id)}}});await db.ledgerEntry.deleteMany({where:{id:{in:entries.map(v=>v.id)}}});await db.submission.deleteMany({where:{id:{in:ids}}});}
+  await db.socialAccount.deleteMany({where:{userId:{in:[member.id,nonmember.id]}}});
+  await db.task.deleteMany({where:{campaignId:campaign.id}});await db.campaign.delete({where:{id:campaign.id}});
+  await db.officialSocialAccount.delete({where:{id:account.id}});
+  await db.user.deleteMany({where:{id:{in:[member.id,nonmember.id]}}});
+  await db.auditEvent.deleteMany({where:{actor:{in:[admin.id,member.id]}}});await db.admin.delete({where:{id:admin.id}});
+  await db.$disconnect();
+ }
+});

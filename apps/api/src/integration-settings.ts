@@ -56,6 +56,7 @@ export class IntegrationSettings {
    const data={disabled:b.disabled,...(b.enabledOverride!==undefined?{enabledOverride:b.enabledOverride}:{}),...(b.callbackUrl!==undefined?{callbackUrl:b.callbackUrl}:{}),...(b.graphVersion!==undefined?{graphVersion:b.graphVersion}:{}),name:b.name||null,profileUrl:b.profileUrl||null,accountId:b.accountId||null,defaultTargetUrl:b.defaultTargetUrl||null,version:b.version+1};
    const row=old?await tx.integrationSetting.updateMany({where:{platform,version:b.version},data}):await tx.integrationSetting.create({data:{...data,platform}});
    if('count'in row&&row.count!==1)throw new ConflictException('Configuration version changed');
+   if(data.disabled||data.enabledOverride===false)await tx.task.updateMany({where:{platform,enabled:true},data:{enabled:false,configurationRequired:true}});
    await tx.auditEvent.create({data:{actor,action:'INTEGRATION_CONFIG_UPDATE',resource:platform+':'+JSON.stringify(data)}});
    return {ok:true,version:b.version+1};
   },{isolationLevel:'Serializable'});
@@ -83,6 +84,7 @@ export class IntegrationSettings {
    if(Object.keys(entered).length)await this.secrets.write(tx,'SOCIAL_PLATFORM',platform,'OAUTH_CONFIG',JSON.stringify(values),actor);
    const data={authMode:body.mode,enabledOverride:body.enabled,disabled:!body.enabled,callbackUrl:body.redirectUri,graphVersion:body.graphVersion||null,credentialsUpdatedAt:new Date(),lastError:null,lastTestStatus:'not_tested',version:(old?.version||0)+1};
    await tx.integrationSetting.upsert({where:{platform},create:{platform,...data},update:data});
+   if(!body.enabled)await tx.task.updateMany({where:{platform,enabled:true},data:{enabled:false,configurationRequired:true}});
    await tx.auditEvent.create({data:{actor,action:'SOCIAL_API_CONFIGURATION_SAVE',resource:platform+':'+JSON.stringify({mode:body.mode,enabled:body.enabled,updatedFields:Object.keys(entered),version:data.version})}});
   },{isolationLevel:'Serializable'});
   return {ok:true,configurationSaved:true,connected:false,status:body.enabled?'configured':'disabled'};

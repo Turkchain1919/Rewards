@@ -26,3 +26,8 @@ Final robots/sitemap inspection found build-time TEST origins in static metadata
 
 ## Hero visual management release candidate0.4.2
 OWNER-only homepage GIF upload/preview/publish/replace/enable/disable/remove implemented in TEST. GIF bytes and metadata persist in PostgreSQL; bounded content validation, audited operations, public current-image response, original design fallback and reduced-motion fallback are included. See HERO_VISUAL.md. Desktop/mobile browser persistence test, full test/build/security/release gates and production rollout pending.
+
+## 0.4.3 — Telegram membership missions (release candidate)
+- Adds admin-configurable Telegram membership mission, user Telegram account link and official Bot API getChatMember verification.
+- On successful verification: idempotent internal AVAILABLE credit and atomic campaign allocation. No mainnet token transfer; claim pause remains enabled.
+- TEST validation passed: 23 app tests including isolated PostgreSQL/Redis-ledger integration and Bot API account connection, admin/browser and Hero regression, 10 Foundry tests, optimized build, lint, audit and migration checks. Deployment is pending exact clean-commit gate, production promotion and health verification.
