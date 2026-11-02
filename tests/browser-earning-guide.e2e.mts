@@ -7,9 +7,9 @@ try{
  for(const lang of ['tr','en'])for(const width of [1440,390]){
   const context=await browser.newContext({viewport:{width,height:900}}),page=await context.newPage(),errors=[];
   page.on('pageerror',e=>errors.push(e.message));
-  await page.goto('http://127.0.0.1:18480/'+lang+'/dashboard',{waitUntil:'networkidle'});
+  await page.goto('http://127.0.0.1:18480/'+lang+'/dashboard',{waitUntil:'domcontentloaded'});
   const guide=page.getByRole('region',{name:lang==='tr'?'Nasıl TURK Kazanılır?':'How to Earn TURK?'});
-  assert.equal(await guide.locator('ol > li').count(),6);
+  await guide.waitFor();assert.equal(await guide.locator('ol > li').count(),6);
   assert.ok((await guide.locator('ol > li').first().innerText()).includes(lang==='tr'?'zorunlu ilk':'required first'));
   assert.ok((await guide.locator('ol > li').nth(1).innerText()).includes(lang==='tr'?'yalnızca':'only when'));
   assert.ok((await guide.innerText()).includes('Turkchain1919'));
