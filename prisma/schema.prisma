@@ -23,6 +23,7 @@ model Campaign {
  status String @default("DRAFT")
  startsAt DateTime?
  endsAt DateTime?
+ archivedAt DateTime?
  createdAt DateTime @default(now())
  networkId String?
  network BlockchainNetwork? @relation(fields:[networkId],references:[id])
@@ -30,6 +31,7 @@ model Campaign {
  allocatedWei Decimal @default(0) @db.Decimal(78,0)
  rewards LedgerEntry[]
  tasks Task[]
+ @@index([archivedAt])
 }
 model Task {
  id String @id @default(cuid())
@@ -45,8 +47,14 @@ model Task {
  targetUrl String?
  policyReviewed Boolean @default(false)
  verification Json?
+ localizedContent Json?
+ startsAt DateTime?
+ endsAt DateTime?
+ publishedAt DateTime?
+ archivedAt DateTime?
  submissions Submission[]
  rewardWei Decimal @default(0) @db.Decimal(78,0)
+ @@index([campaignId, archivedAt])
 }
 model LedgerEntry {
  id String @id @default(cuid())

@@ -1,8 +1,8 @@
-import {Body,Controller,Get,Post,Put,Patch,Param,Query,Req} from '@nestjs/common';
+import {Body,Controller,Get,Post,Put,Patch,Delete,Param,Query,Req} from '@nestjs/common';
 import type {Request} from 'express';
 import {z} from 'zod';
 import {AuthService} from './auth';
-import {EngineService,campaignInput,taskInput} from './engine';
+import {EngineService,campaignInput,taskInput,taskContent} from './engine';
 import {origin,parse} from './security';
 import {OfficialAccountsService} from './official-accounts';
 import {IntegrationSettings,settingInput} from './integration-settings';
@@ -14,6 +14,7 @@ export class MissionController {
  @Get('tasks')tasks(@Query('network')network?:string){return this.engine.publicTasks(network);}
  @Post('tasks/:id/submit')async submit(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const user=await this.auth.user(req);await this.auth.limit(req,'task-submit:'+user.id,20);const {proof}=parse(z.object({proof:z.string().trim().min(20).max(2000)}).strict(),body);return this.engine.submit(user.id,id,proof,typeof req.query.network==='string'?req.query.network:undefined);}
  @Post('tasks/:id/verify-telegram')async verifyTelegram(@Param('id')id:string,@Req()req:Request){origin(req);const user=await this.auth.user(req);await this.auth.limit(req,'telegram-verify:'+user.id,10);return this.engine.verifyTelegram(user.id,id,typeof req.query.network==='string'?req.query.network:undefined);}
+ @Get('me/tasks')async board(@Req()req:Request){const u=await this.auth.user(req);return this.engine.userTaskBoard(u.id,typeof req.query.network==='string'?req.query.network:undefined);}
  @Get('me/history')async history(@Req()req:Request){const u=await this.auth.user(req);const network=await this.auth.config.selected(typeof req.query.network==='string'?req.query.network:undefined);return this.auth.data.db.submission.findMany({where:{userId:u.id,task:{campaign:{networkId:network.id}}},include:{task:{select:{title:true}},reward:{select:{status:true,amountWei:true}}},orderBy:{createdAt:'desc'},take:100});}
  @Get('me/ledger')async ledger(@Req()req:Request){const u=await this.auth.user(req);const network=await this.auth.config.selected(typeof req.query.network==='string'?req.query.network:undefined);return {balances:await this.engine.balances(u.id,network.networkKey),entries:await this.auth.data.db.ledgerEntry.findMany({where:{userId:u.id,networkId:network.id},include:{events:true},orderBy:{createdAt:'desc'},take:100})};}
 }
@@ -26,10 +27,15 @@ export class ManagementController {
  @Get('campaigns')async campaigns(@Req()req:Request){await this.manage(req);return this.auth.data.db.campaign.findMany({include:{tasks:true},orderBy:{createdAt:'desc'},take:100});}
  @Post('campaigns')async createCampaign(@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);return this.engine.saveCampaign(admin.id,parse(campaignInput,body));}
  @Put('campaigns/:id')async editCampaign(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);return this.engine.saveCampaign(admin.id,parse(campaignInput,body),id);}
- @Post('campaigns/:id/:action')async campaignState(@Param('id')id:string,@Param('action')action:string,@Req()req:Request){origin(req);const {admin}=await this.manage(req);const valid=parse(z.enum(['publish','pause']),action);return this.engine.campaignState(admin.id,id,valid==='publish'?'ACTIVE':'PAUSED');}
+ @Get('campaigns/:id/impact')async impactCampaign(@Param('id')id:string,@Req()req:Request){await this.manage(req);return this.engine.campaignImpact(id);}
+ @Delete('campaigns/:id')async deleteCampaign(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);const b=parse(z.object({confirmId:z.literal(id)}).strict(),body);return this.engine.deleteCampaign(admin.id,b.confirmId);}
+ @Post('campaigns/:id/:action')async campaignState(@Param('id')id:string,@Param('action')action:string,@Req()req:Request){origin(req);const {admin}=await this.manage(req);const valid=parse(z.enum(['publish','pause','archive']),action);if(valid==='archive')return this.engine.archiveCampaign(admin.id,id);return this.engine.campaignState(admin.id,id,valid==='publish'?'ACTIVE':'PAUSED');}
  @Post('tasks')async createTask(@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);return this.engine.saveTask(admin.id,parse(taskInput,body));}
+ @Patch('tasks/:id/content')async editTaskContent(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);const b=parse(z.object({title:z.string().trim().min(3).max(160),localizedContent:taskContent,startsAt:z.string().datetime().nullable(),endsAt:z.string().datetime().nullable()}).strict().refine(v=>!v.startsAt||!v.endsAt||new Date(v.endsAt)>new Date(v.startsAt),{message:'Task end must follow start'}),body);return this.engine.updateTaskContent(admin.id,id,b);}
  @Put('tasks/:id')async editTask(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);return this.engine.saveTask(admin.id,parse(taskInput,body),id);}
- @Post('tasks/:id/:action')async taskState(@Param('id')id:string,@Param('action')action:string,@Req()req:Request){origin(req);const {admin}=await this.manage(req);const valid=parse(z.enum(['publish','pause']),action);return this.engine.taskState(admin.id,id,valid==='publish');}
+ @Get('tasks/:id/impact')async impactTask(@Param('id')id:string,@Req()req:Request){await this.manage(req);return this.engine.taskImpact(id);}
+ @Delete('tasks/:id')async deleteTask(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);const b=parse(z.object({confirmId:z.literal(id)}).strict(),body);return this.engine.deleteTask(admin.id,b.confirmId);}
+ @Post('tasks/:id/:action')async taskState(@Param('id')id:string,@Param('action')action:string,@Req()req:Request){origin(req);const {admin}=await this.manage(req);const valid=parse(z.enum(['publish','pause','archive']),action);if(valid==='archive')return this.engine.archiveTask(admin.id,id);return this.engine.taskState(admin.id,id,valid==='publish');}
  @Get('submissions')async submissions(@Req()req:Request){await this.auth.admin(req);return this.auth.data.db.submission.findMany({include:{user:{select:{wallet:true}},task:{select:{title:true}},reward:{select:{amountWei:true,status:true}}},orderBy:{createdAt:'desc'},take:100});}
  @Post('submissions/:id/review')async review(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.auth.admin(req);const b=parse(z.object({action:z.enum(['APPROVE','REJECT']),note:z.string().trim().min(5).max(1000)}).strict(),body);return this.engine.review(admin.id,id,b.action,b.note);}
  @Get('ledger')async ledger(@Req()req:Request){await this.manage(req);return {balances:await this.engine.balances(),entries:await this.auth.data.db.ledgerEntry.findMany({include:{user:{select:{wallet:true}},events:true},orderBy:{createdAt:'desc'},take:100})};}

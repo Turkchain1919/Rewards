@@ -1,0 +1,38 @@
+{
+  "results": [
+    {
+      "lang": "tr",
+      "width": 1440,
+      "dialog": true,
+      "localizedTask": true,
+      "overflow": false,
+      "pageErrors": []
+    },
+    {
+      "lang": "tr",
+      "width": 390,
+      "dialog": true,
+      "localizedTask": true,
+      "overflow": false,
+      "pageErrors": []
+    },
+    {
+      "lang": "en",
+      "width": 1440,
+      "dialog": true,
+      "localizedTask": true,
+      "overflow": false,
+      "pageErrors": []
+    },
+    {
+      "lang": "en",
+      "width": 390,
+      "dialog": true,
+      "localizedTask": true,
+      "overflow": false,
+      "pageErrors": []
+    }
+  ],
+  "archiveAndFilter": true,
+  "archivedTaskHidden": true
+}

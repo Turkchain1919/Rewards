@@ -55,6 +55,18 @@ test('Telegram membership missions publish, appear to users and credit Available
   const left:typeof fetch=async()=>new Response(JSON.stringify({ok:true,result:{status:'left'}}),{status:200});
   await assert.rejects(()=>engine.verifyTelegram(nonmember.id,task.id,network.networkKey,left),/Join the Telegram/);
   assert.equal(await db.submission.count({where:{userId:nonmember.id,taskId:task.id}}),0);
+  const impact=await engine.taskImpact(task.id);assert.equal(impact.canDelete,false);assert.ok(impact.verificationAttempts>=2);
+  const balanceBefore=await engine.balances(member.id,network.networkKey);
+  let release!:()=>void,entered!:()=>void;
+  const started=new Promise<void>(resolve=>{entered=resolve;}),gate=new Promise<void>(resolve=>{release=resolve;});
+  const delayed:typeof fetch=async()=>{entered();await gate;return new Response(JSON.stringify({ok:true,result:{status:'member'}}),{status:200});};
+  const racing=engine.verifyTelegram(nonmember.id,task.id,network.networkKey,delayed);
+  const rejected=assert.rejects(racing,/no longer available/);
+  await started;const archived=await engine.deleteTask(admin.id,task.id);assert.equal(archived.archived,true);release();await rejected;
+  assert.deepEqual(await engine.balances(member.id,network.networkKey),balanceBefore);
+  assert.equal(await db.submission.count({where:{userId:nonmember.id,taskId:task.id}}),0);
+  assert.equal((await engine.verifyTelegram(member.id,task.id,network.networkKey,joined)).alreadyProcessed,true);
+  assert.equal((await engine.publicTasks(network.networkKey)).some(t=>t.id===task.id),false);
   tokenAvailable=false;
   assert.deepEqual(await engine.publicTasks(network.networkKey),[]);
  }finally{
