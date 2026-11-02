@@ -1,0 +1,155 @@
+{
+  "scope": "TEST-only source validation and documentation; production read-only",
+  "baseProductionSha": "cc61b966bf684ad2f602b36100c3bf1de7f4d0a7",
+  "appTests": {
+    "passed": 35,
+    "failed": 0,
+    "skipped": 0
+  },
+  "foundryTests": {
+    "passed": 10,
+    "failed": 0
+  },
+  "typecheck": "passed",
+  "lint": "passed",
+  "apiBuild": "passed",
+  "webBuild": "passed",
+  "browsers": [
+    "hero",
+    "lifecycle",
+    "earning-guide",
+    "telegram-validation TR/EN1440/390"
+  ],
+  "initialFailure": {
+    "kind": "browser test selector ambiguity",
+    "applicationErrorTextWasCorrect": true,
+    "fixedSelector": ".notice[role=alert]",
+    "rerun": "passed"
+  },
+  "dependencyVulnerabilities": 0,
+  "testSchemaDiff": false,
+  "newMigrations": 0,
+  "docs": {
+    "PROJECT_DOCUMENTATION.md": {
+      "sha256": "3fc154971d5c87046b4e857c784180417e5a6cb9513934dd032d3b28adb77080",
+      "bytes": 33188,
+      "lines": 241
+    },
+    "ARCHITECTURE.md": {
+      "sha256": "bc6229a18b5744f70b5ae6560e919ab7950d10a0a34d810e77473646bc591e1e",
+      "bytes": 12623,
+      "lines": 156
+    },
+    "DIRECTORY_STRUCTURE.md": {
+      "sha256": "4e159ec6ec0692a5990a11871abd85e36bde55969f8e1c8811a96d71c4ffb54b",
+      "bytes": 30329,
+      "lines": 312
+    },
+    "DATABASE_DOCUMENTATION.md": {
+      "sha256": "62279673c35db17de43fec716e96eae80374ca1f1d19e044a61342236f63707f",
+      "bytes": 32317,
+      "lines": 641
+    },
+    "ENV_CONFIGURATION.md": {
+      "sha256": "59083cae4243203be8f734ed42f57eb0c2c554136d4be767dd179e1bf391211e",
+      "bytes": 50277,
+      "lines": 276
+    },
+    "DEPLOYMENT_GUIDE.md": {
+      "sha256": "cf920105aa7dc0e077d0cbc83f7c7c8d8a1d7754c291aae6014e7e71cd2e096b",
+      "bytes": 15868,
+      "lines": 167
+    },
+    "API_DOCUMENTATION.md": {
+      "sha256": "27148a0179d94058c76e0a53603f55671a68c014dc88efa4dc067ba49b9475d5",
+      "bytes": 29983,
+      "lines": 219
+    },
+    "CHANGELOG.md": {
+      "sha256": "354b8fcae936cca81ca313595dfc81ab4380eabd549155d8bc5f8d3476dd69ba",
+      "bytes": 29253,
+      "lines": 465
+    },
+    "CURRENT_STATUS.md": {
+      "sha256": "ee2820283b363df2730a1ed0e7c003b0e13884f56780f61939212f713e5332a5",
+      "bytes": 10837,
+      "lines": 119
+    },
+    "CODEX_CONTEXT.md": {
+      "sha256": "7fb5117069852bcbcc92f70fd48bf2124412b31bd6607871c6b0f07d75011818",
+      "bytes": 10990,
+      "lines": 77
+    }
+  },
+  "models": 19,
+  "physicalTablesIncludingMigration": 20,
+  "apiRoutes": 108,
+  "envVariableNames": 239,
+  "firstTaskPreview": {
+    "results": [
+      {
+        "lang": "tr",
+        "steps": 5,
+        "rewardWei": "10000000000000000000",
+        "reviewOnly": true,
+        "serverMutations": 0
+      },
+      {
+        "lang": "en",
+        "steps": 5,
+        "rewardWei": "10000000000000000000",
+        "reviewOnly": true,
+        "serverMutations": 0
+      }
+    ],
+    "databaseRecordCreated": false
+  },
+  "productionReadOnlyCheck": {
+    "productionTablesUnchanged": [
+      "Admin",
+      "AuditEvent",
+      "AuthSession",
+      "BlockchainNetwork",
+      "Campaign",
+      "ClaimAuthorization",
+      "ConfigDocument",
+      "Credential",
+      "HeroVisual",
+      "IntegrationSetting",
+      "LedgerEntry",
+      "LedgerEvent",
+      "OfficialSocialAccount",
+      "SocialAccount",
+      "SocialLinkState",
+      "SocialPlatform",
+      "Submission",
+      "Task",
+      "User"
+    ],
+    "productionMigrationsUnchanged": true,
+    "officialStatus": "CONNECTED",
+    "claimsPaused": true,
+    "noProductionDataWritten": true,
+    "date": "2026-11-02T23:14:55.362Z"
+  },
+  "productionTaskOrCampaignCreated": false,
+  "productionRewardAwarded": false,
+  "productionDeployed": false,
+  "date": "2026-11-02T23:14:55.601461+00:00",
+  "legacyDefaultTargetUsernameCompatibilityPreserved": true,
+  "finalApiCompatibilityRegression": "passed",
+  "telegramLiveReadOnlyProbe": {
+    "canonicalId": "-1003676977941",
+    "username": "Turkchain1919",
+    "bot": "turkchainaibot",
+    "getChat": 200,
+    "getChatMemberStatus": "administrator",
+    "oauthReady": true
+  },
+  "sourceHashes": {
+    "apps/api/src/official-accounts.ts": "d04ac97524cafb263ad6613b35b55de1cd1e926e7dd75e814669c3215f387a25",
+    "apps/web/app/admin/social-management.tsx": "5756a002a844c42b683ba8a8143fd9decdc39fb27126ade59b68a920abdfd69e",
+    "apps/web/app/i18n.tsx": "b061a4eb8f8d0c43c730d8ca1db30eeb13ceaa2f23b437fdaf0d6ea7ebe5a431",
+    "apps/web/app/translations.json": "234ab8dfe3e84d0ab6f5bbc0081baa11a60c51ce3c37baa8c9c4fe07bc9b7cb2"
+  }
+}

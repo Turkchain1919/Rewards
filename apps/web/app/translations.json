@@ -330,5 +330,8 @@
   "MetaMask ile giriş → Telegram hesabını bağla → Turkchain1919 grubuna katıl → Üyeliğini doğrula → Belirlenen TURK ödülünü iç bakiyende gör.": "Sign in with MetaMask → Link Telegram → Join the Turkchain1919 group → Verify membership → See the configured TURK reward in your internal balance.",
   "AVAILABLE platform içi bakiyedir. Gerçek cüzdan transferleri ve claim işlemleri şu anda kapalıdır.": "AVAILABLE is an internal platform balance. Transfers to real wallets and claims are currently disabled.",
   "İlk adım: cüzdanını bağla": "First step: connect your wallet",
-  "Hesabınızı yalnızca görevin gerektirdiği platform için bağlayın. Telegram üyeliği sunucuda doğrulanır; bağlantı tek başına ödül kazandırmaz.": "Link an account only for the platform required by your task. Telegram membership is verified on the server; linking alone does not earn a reward."
+  "Hesabınızı yalnızca görevin gerektirdiği platform için bağlayın. Telegram üyeliği sunucuda doğrulanır; bağlantı tek başına ödül kazandırmaz.": "Link an account only for the platform required by your task. Telegram membership is verified on the server; linking alone does not earn a reward.",
+  "Telegram GROUP/CHANNEL Chat ID negatif sayısal string (örneğin -1003676977941) veya geçerli bir @username olmalıdır.": "Telegram GROUP/CHANNEL Chat ID must be a negative numeric string (for example -1003676977941) or a valid @username.",
+  "Telegram grup/kanal kimliği: -1003676977941 veya @Turkchain1919. Pozitif sayısal grup/kanal ID kabul edilmez.": "Telegram group/channel ID: -1003676977941 or @Turkchain1919. Positive numeric group/channel IDs are not accepted.",
+  "Geçersiz istek alanları": "Invalid request fields"
 }

@@ -11,6 +11,7 @@ node -e "require('node:fs').writeFileSync('$TEST/.runtime/hero-fixture.gif',Buff
 PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx --tsconfig apps/api/tsconfig.json tests/browser-hero.e2e.mts
 PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx --tsconfig apps/api/tsconfig.json tests/browser-lifecycle.e2e.mts
 PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx --tsconfig apps/api/tsconfig.json tests/browser-earning-guide.e2e.mts
+PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx --tsconfig apps/api/tsconfig.json tests/browser-telegram-validation.e2e.mts
 (cd packages/contracts && forge test -vv)
 npm audit --omit=dev --audit-level=high
 npx prisma migrate status
