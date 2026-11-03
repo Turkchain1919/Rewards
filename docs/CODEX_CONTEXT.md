@@ -1,5 +1,12 @@
 # CODEX_CONTEXT — Turkchain® Rewards
 
+## Canlı envanter düzeltmesi — 3 Kasım 2026, yayın sonrası doğrulama
+
+11:28UTC envanterindeki3 kampanya/4 görev, yayından **önce**,12:29:00–12:29:18UTC (Türkiye15:29) arasında OWNER oturumundan silinmiştir. Audit kayıtlarında TASK_DELETE/CAMPAIGN_DELETE ve öncesinde OWNER MFA login vardır. Güncel yayın öncesi13:03UTC yedeğinde ve migration sonrasında **0 kampanya/0 görev** bulunur; eski sütun/row hashleri eşleşir. Silmeler bu deployment veya migration tarafından yapılmamıştır. İşlemi yapan gerçek kişi yalnız audit actoründen çıkarılamaz. Mevcut kullanıcı, ledger ve CONNECTED Telegram hesabı korunur. Yeni görev/kampanya oluşturulmamış, silinmiş kayıtlar geri yüklenmemiştir.
+
+Aşağıdaki1TURK/25 kullanıcı/25TURK görevi referansları artık **tarihsel görev tanımıdır**, aktif canlı görev değildir. Görev motoru regression fixture'ları bu yapıyı test eder; güncel canlı panel doğru şekilde “Henüz yayınlanmış görev yok” gösterir. Yeni ödüllü görevin yayınlanması ayrı açık operatör işlemi gerektirir. Canlı kontrolün ilk denemesinde eski görevID'si bekleyen rapor scripti başarısız olmuştur; bu uygulama hatası değil, eski envanter varsayımıdır ve gizlenmeden raporlanır.
+
+
 Her yeni geliştirme öncesinde CODEX_CONTEXT.md ve ilgili teknik dokümantasyon dosyalarını oku. Önce mevcut mimariyi incele, ardından değişiklik yap. Dokümantasyonla mevcut kod arasında farklılık varsa önce mevcut kodu esas al ve dokümantasyonu güncelle.
 
 ## Proje, sürüm ve kayıtlar
@@ -58,7 +65,7 @@ Eski Task.budgetWei null ise ortak kampanya bütçesi geçerlidir. Yeni katalog 
 
 Webhook ledger yazmaz. İmzalı olayı receipt/short proof yapar; kullanıcı Verify isteği güncel kimlik/resmî hesap versionı/tarih/bütçe/policy kontrolleriyle atomic kredi üretir. Bot kanıtı10dk geçerlidir; geçici proof/receipt kayıtları7gün sonra temizlenir. Ledger, audit ve kimlik rezervasyonları otomatik silinmez.
 
-## Mevcut Telegram görevi ve zincir
+## Tarihsel Telegram görevi, güncel bağlantı ve zincir
 
 TELEGRAM kampanya `cmvxx6wdg0007sqify4ei3lih`; görev `cmw0i0bdw000039ifhpvwcfl1`. Kullanıcı başına1TURK, ilk25 kullanıcı, toplam25TURK. Eski10TURK taslağı güncel değildir. Önceki canlı envanter3kampanya/4görev/1kullanıcı/0ledger idi; güncel veri read-only snapshot ile doğrulanır.
 
