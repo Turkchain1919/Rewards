@@ -11,7 +11,7 @@ import {telegramMembership} from './telegram-verifier';
 const manualVerification=z.object({type:z.literal('MANUAL'),instructions:z.string().trim().min(10).max(2000),minLength:z.number().int().min(20).max(500),maxRewards:z.number().int().min(1).max(1000000).optional()}).strict();
 const telegramVerification=z.object({type:z.literal('TELEGRAM_MEMBERSHIP'),instructions:z.string().trim().min(10).max(2000),maxRewards:z.number().int().min(1).max(1000000).optional()}).strict();
 export const wei=z.string().regex(/^(0|[1-9][0-9]{0,77})$/).refine(x=>/^(0|[1-9][0-9]{0,77})$/.test(x)&&BigInt(x)<2n**256n);
-export const taskLimitsInput=z.object({confirmId:z.string().min(10).max(64),expectedRulesHash:z.string().regex(/^[a-f0-9]{64}$/),rewardWei:wei.refine(x=>BigInt(x)>0n),campaignBudgetWei:wei,maxRewards:z.number().int().min(1).max(1000000).nullable(),startsAt:z.string().datetime().nullable(),endsAt:z.string().datetime().nullable()}).strict().refine(v=>!v.startsAt||!v.endsAt||new Date(v.endsAt)>new Date(v.startsAt),{message:'Task end must follow start'});
+export const taskLimitsInput=z.object({confirmId:z.string().min(10).max(64),expectedRulesHash:z.string().regex(/^[a-f0-9]{64}$/),rewardWei:wei.refine(x=>/^[1-9][0-9]{0,77}$/.test(x)&&BigInt(x)>0n),campaignBudgetWei:wei,maxRewards:z.number().int().min(1).max(1000000).nullable(),startsAt:z.string().datetime().nullable(),endsAt:z.string().datetime().nullable()}).strict().refine(v=>!v.startsAt||!v.endsAt||new Date(v.endsAt)>new Date(v.startsAt),{message:'Task end must follow start'});
 const localizedTaskContent=z.object({
  title:z.string().trim().max(160).optional(),
  description:z.string().trim().max(2000).optional(),

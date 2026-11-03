@@ -64,7 +64,7 @@ test('task limits HTTP requires manager MFA, confirmation, valid values and curr
   const snapshot=await api(task.id);assert.equal(snapshot.status,200);
   const body={confirmId:task.id,expectedRulesHash:snapshot.data.expectedRulesHash,rewardWei:'15',campaignBudgetWei:'100',maxRewards:5,startsAt:null,endsAt:null};
   for(const index of [1,2])for(const method of ['GET','PATCH'])assert.ok([401,403].includes((await api(task.id,method,method==='PATCH'?body:undefined,index)).status));
-  for(const extra of [{maxRewards:0},{maxRewards:1.5},{confirmId:'another-task-id'},{rewardWei:'0'},{endsAt:'invalid'}])assert.equal((await api(task.id,'PATCH',{...body,...extra})).status,400);
+  for(const extra of [{maxRewards:0},{maxRewards:1.5},{confirmId:'another-task-id'},{rewardWei:'0'},{rewardWei:'abc'},{rewardWei:'1.5'},{campaignBudgetWei:'abc'},{endsAt:'invalid'}])assert.equal((await api(task.id,'PATCH',{...body,...extra})).status,400);
   assert.equal((await api(task.id,'PATCH',body)).status,200);assert.equal((await api(task.id,'PATCH',body)).status,409);
   assert.equal((await db.task.findUniqueOrThrow({where:{id:task.id}})).enabled,false);
  }finally{await db.task.deleteMany({where:{campaignId:cid||'__none__'}});await db.campaign.deleteMany({where:{id:cid||'__none__'}});await db.auditEvent.deleteMany({where:{actor:{in:[owner.id,reviewer.id]}}});await db.admin.deleteMany({where:{id:{in:[owner.id,reviewer.id]}}});await db.$disconnect();}
@@ -76,4 +76,10 @@ test('serializable commit adapter conflicts retry and exhaust as HTTP409 without
  const busy=new EngineService({db:{$transaction:async()=>{throw {cause:{originalCode:'40001'}};}}} as unknown as DataService,{} as ConfigurationService,{} as IntegrationSettings);
  await assert.rejects(()=>busy.transaction(async()=>''),e=>(e as {getStatus:()=>number}).getStatus()===409);
  const unknown=new Error('unrelated');const broken=new EngineService({db:{$transaction:async()=>{throw unknown;}}} as unknown as DataService,{} as ConfigurationService,{} as IntegrationSettings);await assert.rejects(()=>broken.transaction(async()=>''),e=>e===unknown);
+});
+
+test('admin limits malformed wei inputs reject without throwing conversion errors',()=>{
+ const body={confirmId:'fixture-task-id',expectedRulesHash:'a'.repeat(64),rewardWei:'1',campaignBudgetWei:'25',maxRewards:null,startsAt:null,endsAt:null};
+ for(const rewardWei of ['abc','1.5','-1','1e18','','0','0x1'])assert.equal(taskLimitsInput.safeParse({...body,rewardWei}).success,false);
+ for(const campaignBudgetWei of ['abc','1.5','-1','1e18',''])assert.equal(taskLimitsInput.safeParse({...body,campaignBudgetWei}).success,false);
 });
