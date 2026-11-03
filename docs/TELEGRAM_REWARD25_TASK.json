@@ -1,0 +1,29 @@
+{
+  "campaignId": "cmvxx6wdg0007sqify4ei3lih",
+  "title": "Turkchain Telegram Topluluğuna Katıl",
+  "platform": "TELEGRAM",
+  "kind": "SOCIAL_INTERACTION",
+  "rewardWei": "1000000000000000000",
+  "policyReviewed": true,
+  "officialAccountId": "cmvxxbysj000isqifw90acmj0",
+  "targetUrl": "https://t.me/Turkchain1919",
+  "verification": {
+    "type": "TELEGRAM_MEMBERSHIP",
+    "instructions": "Resmî Turkchain Telegram grubuna katıl ve üyeliğini doğrula. İlk 25 başarılı kullanıcı, kişi başı bir kez 1 TURK iç bakiye ödülü kazanır.",
+    "maxRewards": 25
+  },
+  "localizedContent": {
+    "tr": {
+      "title": "Turkchain Telegram Topluluğuna Katıl",
+      "description": "Resmî Turkchain Telegram grubuna katıl, üyeliğini doğrula ve 1 TURK iç bakiye ödülü kazan. İlk 25 başarılı kullanıcıyla sınırlıdır.",
+      "steps": ["Cüzdanını bağla.", "Telegram hesabını bağla.", "Turkchain Telegram grubuna katıl.", "Telegram üyeliğimi doğrula ve ödülü al düğmesine bas.", "Doğrulama başarılıysa ve kontenjan varsa 1 TURK iç ödül bakiyene eklenir."],
+      "rewardCondition": "İlk 25 başarılı kullanıcıya kişi başı yalnızca bir kez 1 TURK; toplam bütçe 25 TURK. Ödül platform içi AVAILABLE bakiyesine kaydedilir. Gerçek cüzdan transferleri ve claim işlemleri kapalıdır."
+    },
+    "en": {
+      "title": "Join the Turkchain Telegram Community",
+      "description": "Join the official Turkchain Telegram group, verify your membership, and earn 1 TURK in your internal balance. Limited to the first 25 successful users.",
+      "steps": ["Connect your wallet.", "Connect your Telegram account.", "Join the Turkchain Telegram group.", "Press Verify my Telegram membership and earn the reward.", "After successful verification, 1 TURK is credited to your internal reward balance if a reward slot remains."],
+      "rewardCondition": "The first 25 successful users receive 1 TURK each, once per user; total budget 25 TURK. Rewards are recorded in the internal AVAILABLE balance. Real wallet transfers and claims are disabled."
+    }
+  }
+}

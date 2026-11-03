@@ -8,7 +8,7 @@ import {canEnableTask} from './policy';
 import {IntegrationSettings} from './integration-settings';
 import {telegramMembership} from './telegram-verifier';
 const manualVerification=z.object({type:z.literal('MANUAL'),instructions:z.string().trim().min(10).max(2000),minLength:z.number().int().min(20).max(500)}).strict();
-const telegramVerification=z.object({type:z.literal('TELEGRAM_MEMBERSHIP'),instructions:z.string().trim().min(10).max(2000)}).strict();
+const telegramVerification=z.object({type:z.literal('TELEGRAM_MEMBERSHIP'),instructions:z.string().trim().min(10).max(2000),maxRewards:z.number().int().min(1).max(1000000).optional()}).strict();
 export const wei=z.string().regex(/^(0|[1-9][0-9]{0,77})$/).refine(x=>/^(0|[1-9][0-9]{0,77})$/.test(x)&&BigInt(x)<2n**256n);
 const localizedTaskContent=z.object({
  title:z.string().trim().max(160).optional(),
@@ -26,12 +26,20 @@ export const taskInput=z.object({campaignId:z.string().min(10).max(64),title:z.s
 export class EngineService {
  constructor(readonly data:DataService,readonly config:ConfigurationService,readonly settings:IntegrationSettings){}
  async transaction<T>(fn:(tx:Prisma.TransactionClient)=>Promise<T>):Promise<T>{
-  for(let n=0;;n++){try{return await this.data.db.$transaction(fn,{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:10000});}catch(e){const error=e as {code?:string;meta?:{code?:string;driverAdapterError?:{cause?:{originalCode?:string}}}};if((error.code==='P2034'||error.code==='P2010'&&['40001','40P01'].includes(error.meta?.code||error.meta?.driverAdapterError?.cause?.originalCode||''))&&n<4)continue;throw e;}}
+  for(let n=0;;n++){try{return await this.data.db.$transaction(fn,{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:10000});}catch(e){const error=e as {code?:string;meta?:{code?:string;driverAdapterError?:{cause?:{originalCode?:string}}}};if(error.code==='P2034'||error.code==='P2010'&&['40001','40P01'].includes(error.meta?.code||error.meta?.driverAdapterError?.cause?.originalCode||'')){if(n<4)continue;throw new ConflictException('Concurrent operation; retry later');}throw e;}}
  }
  private async lockTask(tx:Prisma.TransactionClient,id:string){
   const row=await tx.task.findUnique({where:{id},select:{campaignId:true}});
   if(row)await tx.$queryRaw`SELECT "id" FROM "Campaign" WHERE "id"=${row.campaignId} FOR UPDATE`;
   await tx.$queryRaw`SELECT "id" FROM "Task" WHERE "id"=${id} FOR UPDATE`;
+ }
+ private async rewardQuota(tx:Prisma.TransactionClient,task:{id:string;verification:unknown}){
+  const verification=task.verification as {type?:unknown;maxRewards?:unknown}|null;
+  if(!verification||verification.type!=='TELEGRAM_MEMBERSHIP'||verification.maxRewards===undefined)return null;
+  const maxRewards=verification.maxRewards;
+  if(typeof maxRewards!=='number'||!Number.isSafeInteger(maxRewards)||maxRewards<1||maxRewards>1000000)throw new ConflictException('Invalid task reward limit');
+  const rewardedUsers=await tx.submission.count({where:{taskId:task.id,status:'APPROVED',reward:{isNot:null}}});
+  return {maxRewards,rewardedUsers,remainingRewards:Math.max(0,maxRewards-rewardedUsers)};
  }
  private async deleted(tx:Prisma.TransactionClient,kind:'TASK'|'CAMPAIGN',id:string){
   if(await tx.auditEvent.findFirst({where:{action:kind+'_DELETE',resource:id}}))return {deleted:true,archived:false,alreadyDeleted:true,id};
@@ -178,6 +186,7 @@ export class EngineService {
    const t=await tx.task.findUnique({where:{id},include:{campaign:true}});if(!t)throw new NotFoundException();if(t.archivedAt||t.campaign.archivedAt)throw new ConflictException('Archived tasks cannot change state');
    if(enabled&&(!canEnableTask(t.platform,t.kind,t.policyReviewed,t.verification)||!t.verification))throw new ForbiddenException('Only reviewed first-party education and verified Telegram membership tasks may be published');
    if(enabled&&t.verification&&typeof t.verification==='object'&&(t.verification as {type?:string}).type==='TELEGRAM_MEMBERSHIP')await this.assertTelegramTaskReady(t.officialAccountId);
+   if(enabled&&(await this.rewardQuota(tx,t))?.remainingRewards===0)throw new ConflictException('Task reward limit reached');
    if(enabled&&(BigInt(t.rewardWei.toFixed())<=0n||BigInt(t.rewardWei.toFixed())>BigInt(t.campaign.budgetWei.toFixed())))throw new ConflictException('Invalid task reward/budget');
    await tx.auditEvent.create({data:{actor,action:enabled?'TASK_PUBLISH':'TASK_PAUSE',resource:id}});
    const isTelegramVerifier=!!t.verification&&typeof t.verification==='object'&&(t.verification as {type?:string}).type==='TELEGRAM_MEMBERSHIP';
@@ -194,7 +203,8 @@ export class EngineService {
    if(task.platform==='TELEGRAM'&&task.verification&&typeof task.verification==='object'&&(task.verification as {type?:string}).type==='TELEGRAM_MEMBERSHIP'){
     try{if(telegramReady===undefined)telegramReady=await this.telegramBotConfigured();if(!telegramReady)continue;const account=task.officialAccountId?await this.data.db.officialSocialAccount.findUnique({where:{id:task.officialAccountId}}):null;if(!account?.enabled||account.deletedAt||account.connectionStatus!=='CONNECTED'||!['CHANNEL','GROUP'].includes(account.accountType)||!this.validTelegramTarget(account.accountId))continue;}catch{continue;}
    }
-   result.push(task);
+   const rewardQuota=await this.rewardQuota(this.data.db,task);if(rewardQuota?.remainingRewards===0)continue;
+   result.push(rewardQuota?{...task,rewardQuota}:task);
   }
   return result;
  }
@@ -211,9 +221,10 @@ export class EngineService {
    if(task.platform==='TELEGRAM'&&task.verification&&typeof task.verification==='object'&&(task.verification as {type?:string}).type==='TELEGRAM_MEMBERSHIP'){
     try{if(telegramReady===undefined)telegramReady=await this.telegramBotConfigured();if(!telegramReady)continue;const account=task.officialAccountId?await this.data.db.officialSocialAccount.findUnique({where:{id:task.officialAccountId}}):null;if(!account?.enabled||account.deletedAt||account.connectionStatus!=='CONNECTED'||!['CHANNEL','GROUP'].includes(account.accountType)||!this.validTelegramTarget(account.accountId))continue;}catch{continue;}
    }
+   const rewardQuota=await this.rewardQuota(this.data.db,task);if(rewardQuota?.remainingRewards===0)continue;
    const previous=byTask.get(task.id),taskExpired=!!task.endsAt&&task.endsAt<=now,campaignExpired=!!task.campaign.endsAt&&task.campaign.endsAt<=now,notStarted=!!task.startsAt&&task.startsAt>now||!!task.campaign.startsAt&&task.campaign.startsAt>now;
    const userStatus=previous?.status==='APPROVED'?'COMPLETED':previous?.status==='PENDING'?'PENDING':previous?.status==='REJECTED'||failed.has(task.id)?'FAILED':taskExpired||campaignExpired?'EXPIRED':notStarted?'NOT_STARTED':task.platform==='TELEGRAM'&&!linked?'CONNECTION_REQUIRED':task.platform==='TELEGRAM'?'VERIFICATION_PENDING':'NOT_STARTED';
-   result.push({...task,repeatable:false,available:!notStarted&&!taskExpired&&!campaignExpired,userStatus,history:previous?{status:previous.status,reward:previous.reward}:null});
+   result.push({...task,...(rewardQuota?{rewardQuota}:{}),repeatable:false,available:!notStarted&&!taskExpired&&!campaignExpired,userStatus,history:previous?{status:previous.status,reward:previous.reward}:null});
   }
   return result;
  }
@@ -280,6 +291,8 @@ export class EngineService {
    const fresh=await tx.task.findUnique({where:{id:taskId},include:{campaign:true}});
    const checkedAt=new Date();
    if(!fresh||fresh.startsAt&&fresh.startsAt>checkedAt||fresh.endsAt&&fresh.endsAt<=checkedAt||fresh.archivedAt||fresh.campaign.archivedAt||!fresh.enabled||fresh.campaign.status!=='ACTIVE'||fresh.campaign.networkId!==network.id||fresh.campaign.startsAt&&fresh.campaign.startsAt>checkedAt||fresh.campaign.endsAt&&fresh.campaign.endsAt<=checkedAt||fresh.configurationRequired)throw new ConflictException('Telegram membership task is no longer available');
+   const rewardQuota=await this.rewardQuota(tx,fresh);
+   if(rewardQuota?.remainingRewards===0)throw new ConflictException('Task reward limit reached');
    const amount=BigInt(fresh.rewardWei.toFixed()),capacity=BigInt(fresh.campaign.budgetWei.toFixed())-amount;
    if(amount<=0n||capacity<0n)throw new ConflictException('Campaign budget exhausted');
    const allocated=await tx.campaign.updateMany({where:{id:fresh.campaignId,status:'ACTIVE',networkId:network.id,allocatedWei:{lte:capacity.toString()}},data:{allocatedWei:{increment:amount.toString()}}});
@@ -288,6 +301,10 @@ export class EngineService {
    const reward=await tx.ledgerEntry.create({data:{userId,networkId:network.id,campaignId:fresh.campaignId,submissionId:submission.id,amountWei:amount.toString(),status:'AVAILABLE',idempotencyKey:'submission:'+userId+':'+taskId,reason:'Telegram membership verified'}});
    await tx.ledgerEvent.create({data:{ledgerId:reward.id,toStatus:'AVAILABLE',actor:userId,reason:'TELEGRAM_MEMBERSHIP_VERIFIED'}});
    await tx.auditEvent.create({data:{actor:userId,action:'TELEGRAM_MEMBERSHIP_REWARD',resource:submission.id}});
+   if(rewardQuota?.remainingRewards===1){
+    await tx.task.update({where:{id:taskId},data:{enabled:false}});
+    await tx.auditEvent.create({data:{actor:userId,action:'TASK_REWARD_LIMIT_REACHED',resource:taskId}});
+   }
    return {verified:true,alreadyProcessed:false,status:'APPROVED',reward:amount.toString(),ledgerStatus:'AVAILABLE'};
   });
  }

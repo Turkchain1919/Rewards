@@ -1,5 +1,13 @@
 # Sürüm ve dosya değişiklik geçmişi
 
+## 2026-11-03 — Telegram 1TURK / 25kontenjan adayı
+
+- Optional verification.maxRewards; SERIALIZABLE transactionda limit, sonödülle atomikpasifleştirme/audit, exhaustedrepublishreddi.
+- TR/EN maxkullanıcıalanı/kalanödülkontenjanı; exact1TURK/25kullanıcı görevJSON'u.
+- TEST quota/race/ledger/SQLCHECK ve mobilTR/EN browserregresyonları.
+- Instagramcredentials sahipakışı panelrehberi; doğrulanmayan engagementödülleri kapalı.
+- Yeni migration yok. Bu bölüm aday değişikliğidir; productionsonuçlarımanifest/handoff'tan okunur.
+
 Doğrulama anı: 2026-11-02T22:34:00.042Z. Production sürümü: **0.4.5 / `cc61b966bf684ad2f602b36100c3bf1de7f4d0a7`**. Bu doküman TEST dalında hazırlanmıştır; bu çalışmada production kodu/verisi/configuration değiştirilmez. Yollar sunucu `138.226.246.138` üzerindedir. Gerçek ENV/credential değerleri açıklanmaz.
 
 ## Kanıt sınırı

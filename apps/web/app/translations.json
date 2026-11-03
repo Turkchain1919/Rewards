@@ -333,5 +333,16 @@
   "Hesabınızı yalnızca görevin gerektirdiği platform için bağlayın. Telegram üyeliği sunucuda doğrulanır; bağlantı tek başına ödül kazandırmaz.": "Link an account only for the platform required by your task. Telegram membership is verified on the server; linking alone does not earn a reward.",
   "Telegram GROUP/CHANNEL Chat ID negatif sayısal string (örneğin -1003676977941) veya geçerli bir @username olmalıdır.": "Telegram GROUP/CHANNEL Chat ID must be a negative numeric string (for example -1003676977941) or a valid @username.",
   "Telegram grup/kanal kimliği: -1003676977941 veya @Turkchain1919. Pozitif sayısal grup/kanal ID kabul edilmez.": "Telegram group/channel ID: -1003676977941 or @Turkchain1919. Positive numeric group/channel IDs are not accepted.",
-  "Geçersiz istek alanları": "Invalid request fields"
+  "Geçersiz istek alanları": "Invalid request fields",
+  "En fazla ödüllendirilecek kullanıcı (Telegram; boş = sınır yok)": "Maximum rewarded users (Telegram; blank = no limit)",
+  "Kalan ödül kontenjanı": "Remaining reward slots",
+  "Instagram kurulumu ve görev gereklilikleri": "Instagram setup and mission requirements",
+  "Hesap sahibi Business veya Creator hesabının uygulama bilgilerini bu panelden kaydeder.": "The account owner saves the app credentials for their Business or Creator account in this panel.",
+  "Callback adresini Meta uygulamasına ekleyin; ardından Official Social Accounts bölümünden hesabı OAuth ile bağlayın.": "Add the callback URL to the Meta app, then connect the account through OAuth in Official Social Accounts.",
+  "Görev hedefini resmî hesap ve gönderi bağlantısıyla belirleyin. Kullanıcıdan Instagram parolası istemeyin.": "Set the mission target using the official account and post URL. Never request the user’s Instagram password.",
+  "API bilgilerini kaydetmek etkileşim görevlerini etkinleştirmez. Mevcut bağlantı yalnızca instagram_business_basic iznini ister.": "Saving API credentials does not enable engagement missions. The current connection requests only instagram_business_basic.",
+  "Yorum: hesap sahibinin gönderilerine erişim ve yorum izni gerekir; ödül doğrulayıcısı henüz uygulanmadı.": "Comments: access to the owner’s media and comment permission are required; a reward verifier is not implemented yet.",
+  "Takip: hesap bağlantısı takip kanıtı değildir; desteklenen API ve kullanıcı eşleştirmesi ayrıca doğrulanmalıdır.": "Following: connecting an account is not proof of following; API support and user identity matching must be verified separately.",
+  "Beğeni ve paylaşım: toplam sayaçlar bir kullanıcının eylemini kanıtlamaz; kullanıcı bazlı doğrulama hazır değil.": "Likes and shares: aggregate counts do not prove an individual user’s action; per-user verification is not ready.",
+  "Instagram ödül görevleri doğrulama ve platform kuralları incelemesi tamamlanana kadar kapalıdır.": "Instagram reward missions remain disabled until verification and platform policy review are complete."
 }

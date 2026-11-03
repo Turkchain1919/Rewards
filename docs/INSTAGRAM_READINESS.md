@@ -1,0 +1,18 @@
+# Instagram — hesap sahibi ve görev gereklilikleri
+
+2026-11-03 kullanıcı açıklaması: hesap sahibi API bilgilerini Admin Center'dan girecek; katılımcılar hesabı takip edecek/gönderiyle etkileşecek. Bu bilgiler sohbetten istenmez. `apps/web/app/admin/social-api.tsx` mevcut OWNER+MFA ayar ekranında App ID/App Secret/Access Token/GraphVersion/RedirectURI vardır. Şifreli SecretStore; boş alan mevcutdeğerikorur. `official-accounts.ts`, `social-management.tsx`, `social.ts`, `providers.ts` resmi hedef/OAuthcallback akışını sağlar. Kaydetmek CONNECTED/ödül onayı değildir.
+
+Bu sürüm paneline TR/EN kurulum/gereklilik rehberi eklendi. Hesap sahibi Business/Creator hesabını ve Meta uygulamasını oluşturur, panelde gösterilen gerçekcallbackURI'yi allowlist'e koyar, bilgileri kaydeder ve Official Social Accounts'tanOAuthbağlar. Görev hedefhesabı/postURL'sini paneldenbelirler. Kullanıcının Instagram parolası asla alınmaz. Güncelkod `instagram_business_basic` ister; bu kimlikokuma yetkisidir.
+
+| Eylem | Teknik durum / gereklilik | Bu çalışmadaki durum |
+|---|---|---|
+| Gönderi yorumu | Sahibinin medya/commentsAPI erişimi, instagram_business_manage_comments izni/appreview, sayfalama, yorumID+author ve walletkimliği güvenli eşleştirme, webhook imzası/gerekirse pull doğrulaması | Verifier yok; ödül kapalı |
+| Hesabı takip | Genel OAuthbağlantısı takipispatı değil. Messaging user-profile akışında koşullu takipalanı bulunabileceği ayrıca doğrulanmalı; izin/IGSID/consent ve walletbinding gerekir | Destek doğrulanmadı; kapalı |
+| Gönderi beğeni | like_count toplamsayıdır, belirliwalletkişisinineyleminiispatlamaz; gerçekper-userendpoint kanıtı gerekir | Per-userverifier yok; kapalı |
+| Gönderi paylaşımı | shares/insight sayaçları bireyselpaylaşımkanıtı değildir; Story/repost/DM birbirindenfarklıdır | Hedefeylem/APIkanıtıbelirsiz; kapalı |
+
+Bu nedenle kullanıcıbağlantısıbaşarılı diye ödül verilmez, tıklama/ekran görüntüsü otomatikdoğrulama sayılmaz. `policy.ts` INSTAGRAM SOCIAL_INTERACTION yayınını sunucuda reddetmeye devam eder. Manuel doğrulama seçerek policybaypas edilmez. Önce gerçekMetaizinleri/API/yetki ve platformödüllüetkileşimkuralları doğrulanmalıdır. GenelkimlikOAuth'u sıradanhesaplarındesteklendiğianlamınagelmez; InstagramLogin professionalhesapkısıtları vardır. Hesapsahibicredentials girene kadar canlıconsent/target/comment testigeçti diye raporlanamaz.
+
+Resmî kaynaklar: [Meta Instagram Postman koleksiyonu](https://www.postman.com/meta/instagram/documentation/6yqw8pt/instagram-api?entity=request-23987686-894be833-d0b6-4877-859e-c61ae6474d64), [Meta comment moderation](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/comment-moderation), [Meta user profile](https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/user-profile), [Instagram Community Guidelines](https://help.instagram.com/477434105621119). Bu oturumda doğrudan developer/help sayfaları erişim/429 nedeniyle tam okunamadı; Postman aramaindeksinde professionalaccount/comments izinleri görüldü. Eksikerişim nedeniyle güncelödüllüetkileşimkuralları veya genelkişiseltakipAPI yeteneği doğrulandı denmez. Ekizinler doğrulanmadan OAuthscope genişletilmedi.
+
+Sonraki iş: OWNERcredentials+hedefleri girdikten sonra read-only sağlayıcıhealth/scopes/account/media doğrulaması; platformkuralları ve gerçekper-userispatına göre desteklenebilir eylemlerin TESTverifier'ı, walletbinding/idempotency/budget/rate-limit/negative-case testleri. Desteklenmeyen eylemler için çalışıyor görünümü verilmez. Kullanıcının1TURK/25kontenjan Telegram onayı Instagram için ödülmiktarı/bütçe belirlememiştir; Instagramödemesi veya yeniInstagramkampanyası oluşturulmadı.
