@@ -13,7 +13,7 @@ test('Telegram reward quota accepts optional positive integer only',()=>{
  assert.equal(taskInput.parse(payload).verification.type,'TELEGRAM_MEMBERSHIP');
  for(const maxRewards of [0,-1,1.5,1000001,'25',null])assert.equal(taskInput.safeParse({...payload,verification:{...verification,maxRewards}}).success,false);
  assert.equal(taskInput.safeParse({...payload,verification:{type:'TELEGRAM_MEMBERSHIP',instructions:verification.instructions}}).success,true);
- assert.equal(taskInput.safeParse({...payload,verification:{type:'MANUAL',instructions:verification.instructions,minLength:20,maxRewards:25}}).success,false);
+ assert.equal(taskInput.safeParse({...payload,verification:{type:'MANUAL',instructions:verification.instructions,minLength:20,maxRewards:25}}).success,true);
 });
 test('25-user quota survives concurrent awards, closes atomically, preserves one-time ledger',{skip:process.env.RUN_INTEGRATION!=='true'},async()=>{
  assert.equal(process.env.APP_ENV,'test');assert.match(process.env.DATABASE_URL||'',/rewards_test/);

@@ -2,7 +2,7 @@ import {Body,Controller,Get,Post,Put,Patch,Delete,Param,Query,Req} from '@nestjs
 import type {Request} from 'express';
 import {z} from 'zod';
 import {AuthService} from './auth';
-import {EngineService,campaignInput,taskInput,taskContent} from './engine';
+import {EngineService,campaignInput,taskInput,taskContent,taskLimitsInput} from './engine';
 import {origin,parse} from './security';
 import {OfficialAccountsService} from './official-accounts';
 import {IntegrationSettings,settingInput} from './integration-settings';
@@ -33,6 +33,8 @@ export class ManagementController {
  @Post('tasks')async createTask(@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);return this.engine.saveTask(admin.id,parse(taskInput,body));}
  @Patch('tasks/:id/content')async editTaskContent(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);const b=parse(z.object({title:z.string().trim().min(3).max(160),localizedContent:taskContent,startsAt:z.string().datetime().nullable(),endsAt:z.string().datetime().nullable()}).strict().refine(v=>!v.startsAt||!v.endsAt||new Date(v.endsAt)>new Date(v.startsAt),{message:'Task end must follow start'}),body);return this.engine.updateTaskContent(admin.id,id,b);}
  @Put('tasks/:id')async editTask(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);return this.engine.saveTask(admin.id,parse(taskInput,body),id);}
+ @Get('tasks/:id/limits')async taskLimits(@Param('id')id:string,@Req()req:Request){await this.manage(req);return this.engine.taskLimits(id);}
+ @Patch('tasks/:id/limits')async editTaskLimits(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);return this.engine.updateTaskLimits(admin.id,id,parse(taskLimitsInput,body));}
  @Get('tasks/:id/impact')async impactTask(@Param('id')id:string,@Req()req:Request){await this.manage(req);return this.engine.taskImpact(id);}
  @Delete('tasks/:id')async deleteTask(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);const b=parse(z.object({confirmId:z.literal(id)}).strict(),body);return this.engine.deleteTask(admin.id,b.confirmId);}
  @Post('tasks/:id/:action')async taskState(@Param('id')id:string,@Param('action')action:string,@Req()req:Request){origin(req);const {admin}=await this.manage(req);const valid=parse(z.enum(['publish','pause','archive']),action);if(valid==='archive')return this.engine.archiveTask(admin.id,id);return this.engine.taskState(admin.id,id,valid==='publish');}

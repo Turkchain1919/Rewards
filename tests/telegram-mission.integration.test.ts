@@ -46,6 +46,16 @@ test('Telegram membership missions publish, appear to users and credit Available
   await db.socialAccount.create({data:{userId:member.id,provider:'TELEGRAM',providerAccountId:'987654321',accountName:'fixture-user',scopes:[]}});
   await db.socialAccount.create({data:{userId:nonmember.id,provider:'TELEGRAM',providerAccountId:'123456789',accountName:'fixture-nonmember',scopes:[]}});
   const joined:typeof fetch=async(input)=>{const url=new URL(String(input));assert.equal(url.searchParams.get('chat_id'),connectedAccount.accountId);assert.equal(url.searchParams.get('user_id'),'987654321');return new Response(JSON.stringify({ok:true,result:{status:'member'}}),{status:200});};
+  // A reward edit while Bot API verification is in flight cannot silently change the award.
+  let limitsRelease!:()=>void,limitsEntered!:()=>void;
+  const limitsStarted=new Promise<void>(resolve=>{limitsEntered=resolve;}),limitsGate=new Promise<void>(resolve=>{limitsRelease=resolve;});
+  const limitsFetch:typeof fetch=async()=>{limitsEntered();await limitsGate;return new Response(JSON.stringify({ok:true,result:{status:'member'}}),{status:200});};
+  const pendingLimitsVerification=engine.verifyTelegram(member.id,task.id,network.networkKey,limitsFetch);
+  const limitsRejected=assert.rejects(pendingLimitsVerification,/reward changed/);await limitsStarted;
+  let limits=await engine.taskLimits(task.id);
+  await engine.updateTaskLimits(admin.id,task.id,{confirmId:task.id,expectedRulesHash:limits.expectedRulesHash,rewardWei:'5000000000000000000',campaignBudgetWei:limits.campaignBudgetWei,maxRewards:null,startsAt:null,endsAt:null});await engine.taskState(admin.id,task.id,true);limitsRelease();await limitsRejected;
+  assert.equal(await db.ledgerEntry.count({where:{campaignId:campaign.id}}),0);
+  limits=await engine.taskLimits(task.id);await engine.updateTaskLimits(admin.id,task.id,{confirmId:task.id,expectedRulesHash:limits.expectedRulesHash,rewardWei:'10000000000000000000',campaignBudgetWei:limits.campaignBudgetWei,maxRewards:null,startsAt:null,endsAt:null});await engine.taskState(admin.id,task.id,true);
   const credited=await engine.verifyTelegram(member.id,task.id,network.networkKey,joined);
   assert.deepEqual(credited,{verified:true,alreadyProcessed:false,status:'APPROVED',reward:'10000000000000000000',ledgerStatus:'AVAILABLE'});
   assert.equal((await engine.balances(member.id,network.networkKey)).AVAILABLE,'10000000000000000000');

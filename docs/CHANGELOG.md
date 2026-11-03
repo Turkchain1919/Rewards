@@ -1,5 +1,12 @@
 # Sürüm ve dosya değişiklik geçmişi
 
+## Yönetici ödül ve sınır yönetimi
+
+- Onaylı GET/PATCH limits API, mevcut yönetici MFA/rol denetimi, stale edit koruması, önce/sonra audit.
+- Gelecek ödül tutarı, kullanıcı kontenjanı ve görev tarihleri düzenleme/kaldırma; ortak bütçeyi ayrılmış tutarı koruyarak düzenleme.
+- Manuel görevlerde bekleyen ödülleri de ayıran kontenjan; ham transaction commit çatışmaları için retry.
+- Eski ledger/bakiye ve canlı Telegram görevinin ayarları korunur; migration yok.
+
 ## 2026-11-03 — Telegram 1TURK / 25kontenjan adayı
 
 - Optional verification.maxRewards; SERIALIZABLE transactionda limit, sonödülle atomikpasifleştirme/audit, exhaustedrepublishreddi.

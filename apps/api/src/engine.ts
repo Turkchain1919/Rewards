@@ -1,15 +1,17 @@
 import {Injectable,BadRequestException,ConflictException,NotFoundException,ForbiddenException,ServiceUnavailableException} from '@nestjs/common';
 import {Prisma,LedgerStatus} from '@prisma/client';
 import {z} from 'zod';
+import {createHash} from 'node:crypto';
 import {ConfigurationService} from './configuration';
 import {DataService} from './data';
 import {officialAccount,officialPlatforms,OfficialPlatform,safeTarget} from './social-config';
 import {canEnableTask} from './policy';
 import {IntegrationSettings} from './integration-settings';
 import {telegramMembership} from './telegram-verifier';
-const manualVerification=z.object({type:z.literal('MANUAL'),instructions:z.string().trim().min(10).max(2000),minLength:z.number().int().min(20).max(500)}).strict();
+const manualVerification=z.object({type:z.literal('MANUAL'),instructions:z.string().trim().min(10).max(2000),minLength:z.number().int().min(20).max(500),maxRewards:z.number().int().min(1).max(1000000).optional()}).strict();
 const telegramVerification=z.object({type:z.literal('TELEGRAM_MEMBERSHIP'),instructions:z.string().trim().min(10).max(2000),maxRewards:z.number().int().min(1).max(1000000).optional()}).strict();
 export const wei=z.string().regex(/^(0|[1-9][0-9]{0,77})$/).refine(x=>/^(0|[1-9][0-9]{0,77})$/.test(x)&&BigInt(x)<2n**256n);
+export const taskLimitsInput=z.object({confirmId:z.string().min(10).max(64),expectedRulesHash:z.string().regex(/^[a-f0-9]{64}$/),rewardWei:wei.refine(x=>BigInt(x)>0n),campaignBudgetWei:wei,maxRewards:z.number().int().min(1).max(1000000).nullable(),startsAt:z.string().datetime().nullable(),endsAt:z.string().datetime().nullable()}).strict().refine(v=>!v.startsAt||!v.endsAt||new Date(v.endsAt)>new Date(v.startsAt),{message:'Task end must follow start'});
 const localizedTaskContent=z.object({
  title:z.string().trim().max(160).optional(),
  description:z.string().trim().max(2000).optional(),
@@ -26,7 +28,7 @@ export const taskInput=z.object({campaignId:z.string().min(10).max(64),title:z.s
 export class EngineService {
  constructor(readonly data:DataService,readonly config:ConfigurationService,readonly settings:IntegrationSettings){}
  async transaction<T>(fn:(tx:Prisma.TransactionClient)=>Promise<T>):Promise<T>{
-  for(let n=0;;n++){try{return await this.data.db.$transaction(fn,{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:10000});}catch(e){const error=e as {code?:string;meta?:{code?:string;driverAdapterError?:{cause?:{originalCode?:string}}}};if(error.code==='P2034'||error.code==='P2010'&&['40001','40P01'].includes(error.meta?.code||error.meta?.driverAdapterError?.cause?.originalCode||'')){if(n<4)continue;throw new ConflictException('Concurrent operation; retry later');}throw e;}}
+  for(let n=0;;n++){try{return await this.data.db.$transaction(fn,{isolationLevel:Prisma.TransactionIsolationLevel.Serializable,timeout:10000});}catch(e){const error=e as {code?:string;meta?:{code?:string;driverAdapterError?:{cause?:{originalCode?:string}}};cause?:{originalCode?:string}};if(error.code==='P2034'||['40001','40P01'].includes(error.meta?.code||error.meta?.driverAdapterError?.cause?.originalCode||error.cause?.originalCode||'')){if(n<4)continue;throw new ConflictException('Concurrent operation; retry later');}throw e;}}
  }
  private async lockTask(tx:Prisma.TransactionClient,id:string){
   const row=await tx.task.findUnique({where:{id},select:{campaignId:true}});
@@ -35,11 +37,45 @@ export class EngineService {
  }
  private async rewardQuota(tx:Prisma.TransactionClient,task:{id:string;verification:unknown}){
   const verification=task.verification as {type?:unknown;maxRewards?:unknown}|null;
-  if(!verification||verification.type!=='TELEGRAM_MEMBERSHIP'||verification.maxRewards===undefined)return null;
+  if(!verification||!['TELEGRAM_MEMBERSHIP','MANUAL'].includes(String(verification.type))||verification.maxRewards===undefined)return null;
   const maxRewards=verification.maxRewards;
   if(typeof maxRewards!=='number'||!Number.isSafeInteger(maxRewards)||maxRewards<1||maxRewards>1000000)throw new ConflictException('Invalid task reward limit');
-  const rewardedUsers=await tx.submission.count({where:{taskId:task.id,status:'APPROVED',reward:{isNot:null}}});
+  const rewardedUsers=await tx.submission.count({where:{taskId:task.id,reward:{is:{status:{not:'REJECTED'}}}}});
   return {maxRewards,rewardedUsers,remainingRewards:Math.max(0,maxRewards-rewardedUsers)};
+ }
+ private rulesHash(task:{rewardWei:Prisma.Decimal;verification:unknown;startsAt:Date|null;endsAt:Date|null},campaign:{budgetWei:Prisma.Decimal}){
+  return createHash('sha256').update(JSON.stringify({rewardWei:task.rewardWei.toFixed(),maxRewards:(task.verification as {maxRewards?:number}|null)?.maxRewards??null,startsAt:task.startsAt?.toISOString()||null,endsAt:task.endsAt?.toISOString()||null,campaignBudgetWei:campaign.budgetWei.toFixed()})).digest('hex');
+ }
+ private async limitsSnapshot(tx:Prisma.TransactionClient,id:string){
+  const task=await tx.task.findUnique({where:{id},include:{campaign:{include:{_count:{select:{tasks:true}}}}}});if(!task)throw new NotFoundException();
+  const usedRewards=await tx.submission.count({where:{taskId:id,reward:{is:{status:{not:'REJECTED'}}}}});
+  return {id,title:task.title,rewardWei:task.rewardWei.toFixed(),maxRewards:(task.verification as {maxRewards?:number}|null)?.maxRewards??null,usedRewards,startsAt:task.startsAt?.toISOString()||null,endsAt:task.endsAt?.toISOString()||null,enabled:task.enabled,archived:!!task.archivedAt||!!task.campaign.archivedAt,campaignId:task.campaignId,campaignTitle:task.campaign.title,campaignBudgetWei:task.campaign.budgetWei.toFixed(),allocatedWei:task.campaign.allocatedWei.toFixed(),campaignTasks:task.campaign._count.tasks,expectedRulesHash:this.rulesHash(task,task.campaign)};
+ }
+ async taskLimits(id:string){return this.transaction(async tx=>{await this.lockTask(tx,id);return this.limitsSnapshot(tx,id);});}
+ async updateTaskLimits(actor:string,id:string,b:z.infer<typeof taskLimitsInput>){
+  if(b.confirmId!==id)throw new BadRequestException('Task confirmation does not match');
+  return this.transaction(async tx=>{
+   await this.lockTask(tx,id);
+   const task=await tx.task.findUnique({where:{id},include:{campaign:true}});if(!task)throw new NotFoundException();
+   if(task.archivedAt||task.campaign.archivedAt)throw new ConflictException('Archived tasks cannot be edited');
+   if(this.rulesHash(task,task.campaign)!==b.expectedRulesHash)throw new ConflictException('Rules changed; reload before saving');
+   const used=await tx.submission.count({where:{taskId:id,reward:{is:{status:{not:'REJECTED'}}}}});
+   if(b.maxRewards!==null&&b.maxRewards<used)throw new ConflictException('Reward limit cannot be below committed users');
+   if(BigInt(b.campaignBudgetWei)<BigInt(task.campaign.allocatedWei.toFixed()))throw new ConflictException('Budget below committed rewards');
+   if(BigInt(b.rewardWei)>BigInt(b.campaignBudgetWei))throw new ConflictException('Reward exceeds campaign budget');
+   const verification=task.verification as Record<string,Prisma.InputJsonValue>|null;
+   if(!verification||!['MANUAL','TELEGRAM_MEMBERSHIP'].includes(String(verification.type)))throw new ConflictException('Unsupported verification rules');
+   const nextVerification={...verification};delete nextVerification.maxRewards;if(b.maxRewards!==null)nextVerification.maxRewards=b.maxRewards;
+   const before=await this.limitsSnapshot(tx,id);
+   await tx.task.update({where:{id},data:{rewardWei:b.rewardWei,verification:nextVerification,startsAt:b.startsAt?new Date(b.startsAt):null,endsAt:b.endsAt?new Date(b.endsAt):null,enabled:false}});
+   if(b.campaignBudgetWei!==task.campaign.budgetWei.toFixed()){
+    await tx.campaign.update({where:{id:task.campaignId},data:{budgetWei:b.campaignBudgetWei}});
+    await tx.auditEvent.create({data:{actor,action:'CAMPAIGN_EDIT',resource:task.campaignId}});
+   }
+   const after=await this.limitsSnapshot(tx,id);
+   await tx.auditEvent.createMany({data:[{actor,action:'TASK_LIMITS_EDIT',resource:id},{actor,action:'TASK_LIMITS_DETAIL',resource:JSON.stringify({taskId:id,before,after})}]});
+   return after;
+  });
  }
  private async deleted(tx:Prisma.TransactionClient,kind:'TASK'|'CAMPAIGN',id:string){
   if(await tx.auditEvent.findFirst({where:{action:kind+'_DELETE',resource:id}}))return {deleted:true,archived:false,alreadyDeleted:true,id};
@@ -122,7 +158,7 @@ export class EngineService {
   const network=await this.config.selected();
   const startsAt=b.startsAt===undefined?undefined:b.startsAt?new Date(b.startsAt):null,endsAt=b.endsAt===undefined?undefined:b.endsAt?new Date(b.endsAt):null;
   return this.transaction(async tx=>{
-   if(id){const old=await tx.campaign.findUnique({where:{id}});if(!old)throw new NotFoundException();if(old.archivedAt)throw new ConflictException('Archived campaigns cannot be edited');const start=startsAt===undefined?old.startsAt:startsAt,end=endsAt===undefined?old.endsAt:endsAt;if(start&&end&&end<=start)throw new BadRequestException('Invalid campaign dates');if(old.networkId!==network.id)throw new ConflictException('Campaign network differs from selected network');if(BigInt(b.budgetWei)<BigInt(old.allocatedWei.toFixed()))throw new ConflictException('Budget below committed rewards');}
+   if(id){await tx.$queryRaw`SELECT "id" FROM "Campaign" WHERE "id"=${id} FOR UPDATE`;const old=await tx.campaign.findUnique({where:{id}});if(!old)throw new NotFoundException();if(old.archivedAt)throw new ConflictException('Archived campaigns cannot be edited');const start=startsAt===undefined?old.startsAt:startsAt,end=endsAt===undefined?old.endsAt:endsAt;if(start&&end&&end<=start)throw new BadRequestException('Invalid campaign dates');if(old.networkId!==network.id)throw new ConflictException('Campaign network differs from selected network');if(BigInt(b.budgetWei)<BigInt(old.allocatedWei.toFixed()))throw new ConflictException('Budget below committed rewards');}
    const data={title:b.title,description:b.description,budgetWei:b.budgetWei,...(startsAt===undefined?{}:{startsAt}),...(endsAt===undefined?{}:{endsAt}),networkId:network.id};
    const row=id?await tx.campaign.update({where:{id},data}):await tx.campaign.create({data});
    await tx.auditEvent.create({data:{actor,action:id?'CAMPAIGN_EDIT':'CAMPAIGN_CREATE',resource:row.id}});return row;
@@ -186,6 +222,7 @@ export class EngineService {
    const t=await tx.task.findUnique({where:{id},include:{campaign:true}});if(!t)throw new NotFoundException();if(t.archivedAt||t.campaign.archivedAt)throw new ConflictException('Archived tasks cannot change state');
    if(enabled&&(!canEnableTask(t.platform,t.kind,t.policyReviewed,t.verification)||!t.verification))throw new ForbiddenException('Only reviewed first-party education and verified Telegram membership tasks may be published');
    if(enabled&&t.verification&&typeof t.verification==='object'&&(t.verification as {type?:string}).type==='TELEGRAM_MEMBERSHIP')await this.assertTelegramTaskReady(t.officialAccountId);
+   if(enabled&&t.endsAt&&t.endsAt<=new Date())throw new ConflictException('Task has expired');
    if(enabled&&(await this.rewardQuota(tx,t))?.remainingRewards===0)throw new ConflictException('Task reward limit reached');
    if(enabled&&(BigInt(t.rewardWei.toFixed())<=0n||BigInt(t.rewardWei.toFixed())>BigInt(t.campaign.budgetWei.toFixed())))throw new ConflictException('Invalid task reward/budget');
    await tx.auditEvent.create({data:{actor,action:enabled?'TASK_PUBLISH':'TASK_PAUSE',resource:id}});
@@ -239,6 +276,7 @@ export class EngineService {
    if(task.startsAt&&task.startsAt>now||task.endsAt&&task.endsAt<=now||task.archivedAt||c.archivedAt||c.networkId!==network.id||!task.enabled||c.status!=='ACTIVE'||c.startsAt&&c.startsAt>now||c.endsAt&&c.endsAt<=now||!canEnableTask(task.platform,task.kind,task.policyReviewed,task.verification))throw new ConflictException('Task is not available');
    const rule=z.object({type:z.literal('MANUAL'),instructions:z.string(),minLength:z.number()}).safeParse(task.verification);
    if(!rule.success||proof.trim().length<rule.data.minLength)throw new BadRequestException('Evidence does not meet verification rules');
+   const rewardQuota=await this.rewardQuota(tx,task);if(rewardQuota?.remainingRewards===0)throw new ConflictException('Task reward limit reached');
    const amount=BigInt(task.rewardWei.toFixed()),capacity=BigInt(c.budgetWei.toFixed())-amount;
    if(amount<=0n||capacity<0n)throw new ConflictException('Campaign budget exhausted');
    const allocated=await tx.campaign.updateMany({where:{id:c.id,status:'ACTIVE',allocatedWei:{lte:capacity.toString()}},data:{allocatedWei:{increment:amount.toString()}}});
@@ -247,6 +285,7 @@ export class EngineService {
    const reward=await tx.ledgerEntry.create({data:{userId,networkId:network.id,campaignId:c.id,submissionId:submission.id,amountWei:amount.toString(),status:'PENDING',idempotencyKey:'submission:'+userId+':'+taskId,reason:'Mission evidence submitted'}});
    await tx.ledgerEvent.create({data:{ledgerId:reward.id,toStatus:'PENDING',actor:userId,reason:'SUBMISSION'}});
    await tx.auditEvent.create({data:{actor:userId,action:'TASK_SUBMIT',resource:submission.id}});
+   if(rewardQuota?.remainingRewards===1){await tx.task.update({where:{id:taskId},data:{enabled:false}});await tx.auditEvent.create({data:{actor:userId,action:'TASK_REWARD_LIMIT_REACHED',resource:taskId}});}
    return {...submission,reward};
   });
  }
@@ -291,6 +330,7 @@ export class EngineService {
    const fresh=await tx.task.findUnique({where:{id:taskId},include:{campaign:true}});
    const checkedAt=new Date();
    if(!fresh||fresh.startsAt&&fresh.startsAt>checkedAt||fresh.endsAt&&fresh.endsAt<=checkedAt||fresh.archivedAt||fresh.campaign.archivedAt||!fresh.enabled||fresh.campaign.status!=='ACTIVE'||fresh.campaign.networkId!==network.id||fresh.campaign.startsAt&&fresh.campaign.startsAt>checkedAt||fresh.campaign.endsAt&&fresh.campaign.endsAt<=checkedAt||fresh.configurationRequired)throw new ConflictException('Telegram membership task is no longer available');
+   if(fresh.rewardWei.toFixed()!==task.rewardWei.toFixed())throw new ConflictException('Task reward changed; refresh and retry');
    const rewardQuota=await this.rewardQuota(tx,fresh);
    if(rewardQuota?.remainingRewards===0)throw new ConflictException('Task reward limit reached');
    const amount=BigInt(fresh.rewardWei.toFixed()),capacity=BigInt(fresh.campaign.budgetWei.toFixed())-amount;
