@@ -14,7 +14,7 @@ try{
   await page.goto('http://127.0.0.1:18480/'+lang+'/admin',{waitUntil:'domcontentloaded'});
   await page.getByRole('button',{name:'Social API',exact:true}).click();await page.getByRole('combobox',{name:lang==='tr'?'Platform seç':'Select platform',exact:true}).selectOption('INSTAGRAM');
   const info=page.getByRole('complementary',{name:'Instagram'});await info.waitFor();const text=await info.innerText();
-  assert.ok(text.includes('Business'));assert.ok(text.includes('instagram_business_basic'));assert.ok(text.includes(lang==='tr'?'ödül görevleri':'reward missions'));
+  assert.ok(text.includes('Business'));assert.ok(text.includes(lang==='tr'?'izin':'permissions'));assert.ok(text.includes(lang==='tr'?'ödül görevleri':'reward missions'));
   for(const field of ['clientId','clientSecret','accessToken'])assert.equal(await page.locator('input[name="'+field+'"]').getAttribute('type'),'password');
   await page.getByRole('button',{name:lang==='tr'?'Görevler':'Missions',exact:true}).click();
   const cap=page.locator('input[name="maxRewards"]');await cap.waitFor();await cap.fill('25');assert.equal(await cap.inputValue(),'25');assert.equal(await cap.getAttribute('min'),'1');assert.equal(await cap.getAttribute('step'),'1');

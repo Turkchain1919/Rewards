@@ -10,13 +10,14 @@ import {IntegrationSettings} from './integration-settings';
 import {officialPlatforms,officialAccount,safeTarget} from './social-config';
 import {Platform,TokenProfile,configuration,authorizationUrl} from './providers';
 import {telegramBotChat} from './telegram-verifier';
+import {socialRequest} from './social-http';
 import {origin,parse,digest,encrypt,decrypt,cookie} from './security';
 const url=z.string().max(2048);
 const telegramGroupTarget=(v:string)=>/^-[1-9][0-9]{0,23}$/.test(v)||/^@[A-Za-z0-9_]{5,32}$/.test(v);
 const telegramGroupDefaultTarget=(v:string)=>telegramGroupTarget(v)||(!/^[0-9]+$/.test(v)&&/^[A-Za-z0-9_]{5,32}$/.test(v));
 const telegramGroupTargetMessage='Telegram GROUP/CHANNEL Chat ID must be a negative numeric string (for example -1003676977941) or a valid @username.';
 const telegramTarget=(v:string)=>/^-?[0-9]{1,24}$/.test(v)||/^@?[A-Za-z0-9_]{5,32}$/.test(v);
-export const officialInput=z.object({platform:z.string().regex(/^[A-Z][A-Z0-9_]{0,39}$/),accountType:z.enum(['PROFILE','PAGE','CHANNEL','GROUP','BOT','GUILD','ORGANIZATION','REPOSITORY']).default('PROFILE'),name:z.string().trim().min(2).max(100),username:z.string().max(100).default(''),accountId:z.string().max(200).default(''),profileUrl:url.default(''),defaultTargetUrl:url.default(''),enabled:z.boolean().default(false)}).strict().superRefine((v,ctx)=>{
+export const officialInput=z.object({platform:z.string().regex(/^[A-Z][A-Z0-9_]{0,39}$/),accountType:z.enum(['PROFILE','ACCOUNT','PROFESSIONAL_ACCOUNT','PAGE','CHANNEL','GROUP','BOT','GUILD','ORGANIZATION','REPOSITORY']).default('PROFILE'),name:z.string().trim().min(2).max(100),username:z.string().max(100).default(''),accountId:z.string().max(200).default(''),profileUrl:url.default(''),defaultTargetUrl:url.default(''),enabled:z.boolean().default(false)}).strict().superRefine((v,ctx)=>{
  const telegramGroup=v.platform==='TELEGRAM'&&['GROUP','CHANNEL'].includes(v.accountType);
  if(telegramGroup&&v.accountId&&!telegramGroupTarget(v.accountId))ctx.addIssue({code:'custom',path:['accountId'],message:telegramGroupTargetMessage});
  if(v.profileUrl&&!safeTarget(v.profileUrl))ctx.addIssue({code:'custom',path:['profileUrl'],message:'Enter a safe HTTPS profile URL.'});
@@ -76,9 +77,16 @@ export class OfficialAccountsService {
  async connectTelegram(id:string,actor:string,fetcher:typeof fetch=fetch){
   const account=await this.data.db.officialSocialAccount.findUnique({where:{id}});
   if(!account||account.deletedAt)throw new NotFoundException();
-  if(account.platform!=='TELEGRAM'||!['CHANNEL','GROUP'].includes(account.accountType))throw new BadRequestException('Telegram group or channel account required');
+  if(account.platform!=='TELEGRAM'||!['CHANNEL','GROUP','BOT'].includes(account.accountType))throw new BadRequestException('Telegram group or channel account required');
   const settings=await this.settings.secretValues('TELEGRAM'),token=settings.botToken;
   if(!token||!(await this.settings.list()).find(v=>v.platform==='TELEGRAM')?.enabled)throw new ServiceUnavailableException('Configure and enable the Telegram Bot API token first');
+  if(account.accountType==='BOT'){
+   let result:Record<string,unknown>;try{const response=await socialRequest('https://api.telegram.org/bot'+token+'/getMe',{},fetcher);if(response.ok!==true)throw new Error();result=response.result as Record<string,unknown>;}catch{throw new ServiceUnavailableException('Telegram bot identity verification failed');}
+   const botId=typeof result.id==='number'&&Number.isSafeInteger(result.id)?String(result.id):typeof result.id==='string'?result.id:'',username=typeof result.username==='string'?result.username:'';
+   if(result.is_bot!==true||!/^[0-9]{1,24}$/.test(botId)||!/^[A-Za-z0-9_]{5,32}$/.test(username)||account.accountId&&account.accountId!==botId)throw new ConflictException('Configured bot differs from Telegram getMe identity');
+   await this.data.db.$transaction(async tx=>{await tx.$queryRaw`SELECT "id" FROM "OfficialSocialAccount" WHERE "id"=${id} FOR UPDATE`;const fresh=await tx.officialSocialAccount.findUniqueOrThrow({where:{id}});if(fresh.deletedAt||fresh.version!==account.version)throw new ConflictException('Account configuration changed; retry connection');await tx.officialSocialAccount.update({where:{id},data:{accountId:botId,username,name:typeof result.first_name==='string'?result.first_name:username,profileUrl:'https://t.me/'+username,defaultTargetUrl:'https://t.me/'+username,connectionStatus:'CONNECTED',lastSuccessAt:new Date(),lastError:null,metadataOverride:true,version:{increment:1}}});await tx.task.updateMany({where:{officialAccountId:id,enabled:false},data:{configurationRequired:false}});await tx.auditEvent.create({data:{actor,action:'OFFICIAL_ACCOUNT_CONNECTED',resource:id}});});
+   return {ok:true,connected:true,account:{id,platform:'TELEGRAM',accountType:'BOT',accountId:botId,username}};
+  }
   const target=account.accountId||account.username;
   if(!target)throw new BadRequestException('Telegram chat ID or username required');
   let verified;
@@ -134,7 +142,7 @@ export class OfficialAccountsService {
    await tx.$queryRaw`SELECT "id" FROM "OfficialSocialAccount" WHERE "id"=${id} FOR UPDATE`;
    const fresh=await tx.officialSocialAccount.findUniqueOrThrow({where:{id}});
    if(fresh.deletedAt||fresh.version!==account.version)throw new ConflictException('Connection configuration changed');
-   const credential=await this.secrets.write(tx,'OFFICIAL_ACCOUNT',id,'TOKENS',JSON.stringify(tokenData),actor);
+   const credential=await this.secrets.write(tx,'OFFICIAL_ACCOUNT',id,'TOKENS',JSON.stringify({...tokenData,scopes:profile.scopes}),actor);
    await tx.officialSocialAccount.update({where:{id},data:{accountId:selected.accountId,name:selected.name,profileUrl:selected.profileUrl||account.profileUrl,credentialId:credential.id,connectionStatus:'CONNECTED',lastSuccessAt:new Date(),lastError:null,metadataOverride:true,version:{increment:1}}});
    await tx.task.updateMany({where:{officialAccountId:id,enabled:false},data:{configurationRequired:false}});
    await tx.auditEvent.create({data:{actor,action:'OFFICIAL_ACCOUNT_CONNECTED',resource:id}});
@@ -181,7 +189,7 @@ export class OfficialAccountsController {
   origin(req);const {admin,session}=await this.manage(req);const a=await this.auth.data.db.officialSocialAccount.findUniqueOrThrow({where:{id}});
   if(a.deletedAt)throw new NotFoundException();
   const platform=parse(z.enum(officialPlatforms),a.platform) as Platform;
-  if(platform==='TELEGRAM'&&['CHANNEL','GROUP'].includes(a.accountType))return this.accounts.connectTelegram(id,admin.id);
+  if(platform==='TELEGRAM'&&['CHANNEL','GROUP','BOT'].includes(a.accountType))return this.accounts.connectTelegram(id,admin.id);
   const override=await this.accounts.settings.runtime(platform,'official'),c=configuration(platform,override);
   if(!c.ready)throw new ServiceUnavailableException('OAuth credentials, activation or app permissions missing');
   const state=randomBytes(32).toString('hex'),binder=randomBytes(32).toString('hex'),verifier=randomBytes(32).toString('base64url'),nonce=randomBytes(24).toString('hex');

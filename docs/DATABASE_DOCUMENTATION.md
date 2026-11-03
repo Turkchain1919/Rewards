@@ -1,5 +1,48 @@
 # PostgreSQL veri modeli ve migration geçmişi
 
+## v0.5.0 güncel kapsam — 3 Kasım 2026
+
+Kaynak dalı `feature/multi-social-rewards-engine`; önceki canlı sürüm `3c85ac1a29b51d86d74d1fe7cc847ee391f7a4c0` (v0.4.5). Aşağıdaki eski envanterler tarihsel kanıttır; güncel modüller ve sınırlar bu bölüm ile sosyal dokümanlarda açıklanır. Çalışan tam SHA, `.runtime/deployment.json` ve `.runtime/validated.json` üzerinden doğrulanır; bu dosyanın bulunduğu commit kendi hashini içermez. Yayın sonucu [PRODUCTION_RELEASE_REPORT.md](PRODUCTION_RELEASE_REPORT.md).
+
+8 platform ve 65 görev tanımı vardır. Katalogda bulunması gerçek API bağlantısı veya ödüllü yayın izni değildir. X/YouTube teşvikli etkileşimleri politika nedeniyle kapalı; Meta/TikTok normal ticari API yetenekleri sınırlı; Kick/Twitch ödüllü etkileşimleri izin incelemesi olmadan kapalıdır. Sadece mevcut Telegram üyelik doğrulaması ve açıkça yapılandırılacak özel bot kanıtları uygulanmıştır. Hiçbir yeni canlı görev/kampanya otomatik oluşturulmaz. Tekrarlanabilir görevler reddedilir. Claim ve gerçek transferler kapalıdır.
+
+Mevcut Telegram görevi kullanıcı başına **1 TURK**, **25 kullanıcı**, ortak kampanya **25 TURK** bütçesidir; 10 TURK eski taslaktır. Üç kampanya/dört görev korunur. `REWARD_CLAIMS_PAUSED=true`; master ödeme yetkisi tanımsızken etkin değer false olur. Telegram GROUP `-1003676977941` string olarak korunur. Gizli değerler dokümantasyona yazılmaz.
+
+Güncel Prisma model sayısı22; `_prisma_migrations` ile23 fiziksel tablo. 15. migration `202611030001_multi_social_engine` eklemelidir. Önceki19 model aşağıdaki tarihsel ayrıntıda korunur; eski kayıt sayıları güncel sayım değildir. Canlı beklenen3 Campaign,4 Task,1 User; kesin koruma hashleri yayın raporundadır.
+
+| Yeni alan/tablo | Veri tipi / görev |
+|---|---|
+| Task.socialTaskCode / targetObjectId | nullable text; katalog kodu ve sağlayıcı nesnesi |
+| Task.timezone | text NOT NULL DEFAULT UTC; IANA isim, tarihler UTC |
+| Task.budgetWei | nullable Decimal(78,0); eski görev null ortak bütçe, yeni katalog görevi sonlu bütçe |
+| Task.allocatedWei | Decimal(78,0), default0; REJECTED dışı eski ledger üzerinden doldurulur |
+| IntegrationSetting.requestedScopes | text[] default[]; resmî yönetici OAuth izinleri |
+| IntegrationSetting.webhookEnabled / webhookVerifiedAt | boolean false / nullable timestamp(3); opt-in / son imza doğrulama |
+| SocialRewardIdentity | taskId,userId,provider,accountHash,createdAt; task/provider/hash UNIQUE; FK RESTRICT |
+| SocialWebhookReceipt | id,platform,eventId,eventType,bodyHash,actorHash?,targetObjectId?,receivedAt,occurredAt,expiresAt; platform/eventId UNIQUE |
+| SocialChallenge | id,userId,taskId,officialAccountId,officialVersion,providerAccountHash,tokenHash,expiresAt,verifiedAt?,consumedAt?,receiptId?,createdAt; tokenHash UNIQUE |
+
+Yeni tablolarda id/ilişki/özetler TEXT, officialVersion INTEGER, tarihler TIMESTAMP(3). Challenge User/Task/receipt FK RESTRICT; officialAccountId snapshot olup FK değildir, güncel version kontrolü uygulamadadır. Receipt ham provider payloadı/token saklamaz. `task_budget_bounds` CHECK allocated>=0 ve sonlu bütçe varsa allocated<=budget; kampanya ortak bütçesi de transaction içinde korunur. SQL migration mevcut ledger/user/bakiye alanlarını güncellemez. Eski sosyal ödüller için yalnız hâlâ çözülebilen kimlikler backfill edilir; bağlantısı daha önce kaldırılmış bilinmeyen tarihsel kimlik uydurulmaz.
+
+```mermaid
+erDiagram
+ User ||--o{ SocialRewardIdentity : reserves
+ Task ||--o{ SocialRewardIdentity : unique_social_identity
+ User ||--o{ SocialChallenge : requests
+ Task ||--o{ SocialChallenge : proves
+ SocialWebhookReceipt o|--o{ SocialChallenge : signed_evidence
+ Task ||--o{ Submission : attempts
+ Submission o|--o| LedgerEntry : single_credit
+ Campaign ||--o{ Task : global_budget
+```
+
+Tam sütun, default, unique ve indekslerin otoritesi `prisma/schema.prisma` ve migration SQL'dir; yeni kaynak blokları aşağıdaki ek bölümde birebir verilmiştir.
+
+---
+
+## Önceki sürüm envanteri (tarihsel)
+
+
 > **2026-11-03 güncel çalışma:** Önceki 10 TURK taslağı yerine kullanıcı 1 TURK × ilk25 kullanıcı / toplam25TURK ve TEST sonrası productionyayınını onayladı. Güncel plan ve doğrulama koşulları [REWARD25_RELEASE_READINESS](REWARD25_RELEASE_READINESS.md), tam payload [TELEGRAM_REWARD25_TASK.json](TELEGRAM_REWARD25_TASK.json), Instagram açıklaması [INSTAGRAM_READINESS](INSTAGRAM_READINESS.md). Aşağıdaki bilgiler önceki snapshot olabilir; çalışanSHA ve gerçekyayınsonucu dış PROJECT_HANDOFF.md/deploymentmanifest esas alınarak doğrulanır.
 
 Doğrulama anı: 2026-11-02T22:34:00.042Z. Production sürümü: **0.4.5 / `cc61b966bf684ad2f602b36100c3bf1de7f4d0a7`**. Bu doküman TEST dalında hazırlanmıştır; bu çalışmada production kodu/verisi/configuration değiştirilmez. Yollar sunucu `138.226.246.138` üzerindedir. Gerçek ENV/credential değerleri açıklanmaz.
@@ -641,3 +684,61 @@ Uygulama modeli değildir; migration checksum/log/start/finish/rollback ve appli
 | applied_steps_count | integer | NO | 0 |
 
 İç tablo constraintleri: `_prisma_migrations_pkey`: `PRIMARY KEY (id)`.
+
+## v0.5.0 yeni tabloların gerçek Prisma alanları
+
+```prisma
+model SocialRewardIdentity {
+ id String @id @default(cuid())
+ taskId String
+ task Task @relation(fields:[taskId],references:[id],onDelete:Restrict)
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+ provider String
+ accountHash String
+ createdAt DateTime @default(now())
+ @@unique([taskId,provider,accountHash])
+ @@index([userId])
+}
+```
+
+```prisma
+model SocialWebhookReceipt {
+ id String @id @default(cuid())
+ platform String
+ eventId String
+ eventType String
+ bodyHash String
+ actorHash String?
+ targetObjectId String?
+ receivedAt DateTime @default(now())
+ occurredAt DateTime
+ expiresAt DateTime
+ challenges SocialChallenge[]
+ @@unique([platform,eventId])
+ @@index([expiresAt])
+}
+```
+
+```prisma
+model SocialChallenge {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+ taskId String
+ task Task @relation(fields:[taskId],references:[id],onDelete:Restrict)
+ officialAccountId String
+ officialVersion Int
+ providerAccountHash String
+ tokenHash String @unique
+ expiresAt DateTime
+ verifiedAt DateTime?
+ consumedAt DateTime?
+ receiptId String?
+ receipt SocialWebhookReceipt? @relation(fields:[receiptId],references:[id],onDelete:Restrict)
+ createdAt DateTime @default(now())
+ @@index([expiresAt])
+ @@index([userId,taskId])
+}
+```
+

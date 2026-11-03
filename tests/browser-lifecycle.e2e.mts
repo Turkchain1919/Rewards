@@ -22,7 +22,7 @@ try{
   await page.getByLabel(lang==='tr'?'Durum filtresi':'Status filter').selectOption('Aktif');
   const card=page.locator('article.panel').filter({has:page.getByRole('heading',{name:task.title,exact:true})});
   await card.getByRole('button',{name:lang==='tr'?'Düzenle':'Edit',exact:true}).click();
-  await page.getByText(lang==='tr'?'Yayınlanmış görevlerde yalnızca içerik ve tarihler düzenlenir; ödül kuralları korunur.':'Published tasks allow content and date edits; reward rules are preserved.',{exact:true}).waitFor();
+  await page.getByText(lang==='tr'?'Bu form içerik ve tarihleri düzenler. Ödül kuralları için Ödül ve sınırlar düğmesini kullanın.':'This form edits content and dates. Use Reward and limits to edit reward rules.',{exact:true}).waitFor();
   assert.equal(await page.locator('input[name="reward"]').count(),0);assert.equal(await page.locator('textarea[name="en_title"]').inputValue(),'English task '+nonce);
   const saved=page.waitForResponse(r=>r.url().includes('/tasks/'+task.id+'/content')&&r.request().method()==='PATCH');await page.getByRole('button',{name:lang==='tr'?'Kaydet':'Save',exact:true}).click();assert.equal((await saved).status(),200);
   await card.getByRole('button',{name:lang==='tr'?'Sil':'Delete',exact:true}).click();

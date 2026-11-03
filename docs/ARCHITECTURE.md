@@ -1,5 +1,39 @@
 # Sistem mimarisi — Turkchain® Rewards
 
+## v0.5.0 güncel kapsam — 3 Kasım 2026
+
+Kaynak dalı `feature/multi-social-rewards-engine`; önceki canlı sürüm `3c85ac1a29b51d86d74d1fe7cc847ee391f7a4c0` (v0.4.5). Aşağıdaki eski envanterler tarihsel kanıttır; güncel modüller ve sınırlar bu bölüm ile sosyal dokümanlarda açıklanır. Çalışan tam SHA, `.runtime/deployment.json` ve `.runtime/validated.json` üzerinden doğrulanır; bu dosyanın bulunduğu commit kendi hashini içermez. Yayın sonucu [PRODUCTION_RELEASE_REPORT.md](PRODUCTION_RELEASE_REPORT.md).
+
+8 platform ve 65 görev tanımı vardır. Katalogda bulunması gerçek API bağlantısı veya ödüllü yayın izni değildir. X/YouTube teşvikli etkileşimleri politika nedeniyle kapalı; Meta/TikTok normal ticari API yetenekleri sınırlı; Kick/Twitch ödüllü etkileşimleri izin incelemesi olmadan kapalıdır. Sadece mevcut Telegram üyelik doğrulaması ve açıkça yapılandırılacak özel bot kanıtları uygulanmıştır. Hiçbir yeni canlı görev/kampanya otomatik oluşturulmaz. Tekrarlanabilir görevler reddedilir. Claim ve gerçek transferler kapalıdır.
+
+Mevcut Telegram görevi kullanıcı başına **1 TURK**, **25 kullanıcı**, ortak kampanya **25 TURK** bütçesidir; 10 TURK eski taslaktır. Üç kampanya/dört görev korunur. `REWARD_CLAIMS_PAUSED=true`; master ödeme yetkisi tanımsızken etkin değer false olur. Telegram GROUP `-1003676977941` string olarak korunur. Gizli değerler dokümantasyona yazılmaz.
+
+```mermaid
+flowchart TD
+ U[Kullanıcı / MetaMask SIWE] --> W[Next TR/EN kullanıcı paneli]
+ A[Admin / RBAC / MFA] --> B[Next sosyal görev oluşturucu]
+ W --> API[Nest API]
+ B --> API
+ API --> CAT[Katalog ve değiştirilemez politika kapısı]
+ API --> O[OAuth state / gerekli PKCE / şifreli Credential]
+ API --> AD[8 platform adapterı]
+ AD --> P[Resmî API / sahiplik / Telegram getChatMember]
+ P --> E[Engine yeniden kontrol / Campaign ve Task kilitleri]
+ WH[İmzalı webhook] --> R[Replay korumalı receipt / kısa kanıt]
+ R --> E
+ E --> DB[(PostgreSQL exact wei ledger / identity unique)]
+ DB --> BAL[AVAILABLE iç bakiye]
+ Q[Redis / BullMQ maintenance ve social-credentials] --> DB
+ BAL -. Claim pause / transfer kapalı .-> C[EIP712 Claim / deploy edilmemiş vault]
+```
+
+Webhook ödül yazmaz: yalnız imzalı kanıt saklar. Kullanıcının doğrulama isteği aynı transaction içinde güncel hesap kimliğini, resmî hesap versionını, süreyi, görevi/kampanyayı, bütçeyi ve tek ödülü tekrar kontrol eder. Yeni bot kanıtı10 dakika geçerlidir. Kimlik rezervasyonları kalıcıdır; unlink yeni cüzdanla ödülü tekrarlatmaz. Geçici receipt/challenge kayıtları7 gün sonra temizlenir; ledger/audit silinmez.
+
+---
+
+## Önceki sürüm envanteri (tarihsel)
+
+
 > **2026-11-03 güncel çalışma:** Önceki 10 TURK taslağı yerine kullanıcı 1 TURK × ilk25 kullanıcı / toplam25TURK ve TEST sonrası productionyayınını onayladı. Güncel plan ve doğrulama koşulları [REWARD25_RELEASE_READINESS](REWARD25_RELEASE_READINESS.md), tam payload [TELEGRAM_REWARD25_TASK.json](TELEGRAM_REWARD25_TASK.json), Instagram açıklaması [INSTAGRAM_READINESS](INSTAGRAM_READINESS.md). Aşağıdaki bilgiler önceki snapshot olabilir; çalışanSHA ve gerçekyayınsonucu dış PROJECT_HANDOFF.md/deploymentmanifest esas alınarak doğrulanır.
 
 Doğrulama anı: 2026-11-02T22:34:00.042Z. Production sürümü: **0.4.5 / `cc61b966bf684ad2f602b36100c3bf1de7f4d0a7`**. Bu doküman TEST dalında hazırlanmıştır; bu çalışmada production kodu/verisi/configuration değiştirilmez. Yollar sunucu `138.226.246.138` üzerindedir. Gerçek ENV/credential değerleri açıklanmaz.

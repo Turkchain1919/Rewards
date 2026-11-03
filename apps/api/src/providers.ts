@@ -1,7 +1,7 @@
 import {createHash,createHmac} from 'node:crypto';
 import {createRemoteJWKSet,jwtVerify} from 'jose';
 import {credentials} from './social-config';
-export const socialPlatforms=['X','TELEGRAM','FACEBOOK','INSTAGRAM','YOUTUBE','TIKTOK','DISCORD','GITHUB'] as const;
+export const socialPlatforms=['X','TELEGRAM','FACEBOOK','INSTAGRAM','YOUTUBE','TIKTOK','KICK','TWITCH','DISCORD','GITHUB'] as const;
 export type Platform=typeof socialPlatforms[number];
 type Definition={authorize:string;token:string;scopes:string[];pkce:boolean};
 const definitions:Record<Platform,Definition>={
@@ -10,11 +10,13 @@ const definitions:Record<Platform,Definition>={
  FACEBOOK:{authorize:'https://www.facebook.com/VERSION/dialog/oauth',token:'https://graph.facebook.com/VERSION/oauth/access_token',scopes:['public_profile'],pkce:false},
  INSTAGRAM:{authorize:'https://www.instagram.com/oauth/authorize',token:'https://api.instagram.com/oauth/access_token',scopes:['instagram_business_basic'],pkce:false},
  YOUTUBE:{authorize:'https://accounts.google.com/o/oauth2/v2/auth',token:'https://oauth2.googleapis.com/token',scopes:['https://www.googleapis.com/auth/youtube.readonly'],pkce:true},
+ KICK:{authorize:'https://id.kick.com/oauth/authorize',token:'https://id.kick.com/oauth/token',scopes:['user:read'],pkce:true},
+ TWITCH:{authorize:'https://id.twitch.tv/oauth2/authorize',token:'https://id.twitch.tv/oauth2/token',scopes:[],pkce:false},
  DISCORD:{authorize:'https://discord.com/oauth2/authorize',token:'https://discord.com/api/oauth2/token',scopes:['identify','guilds'],pkce:true},
  GITHUB:{authorize:'https://github.com/login/oauth/authorize',token:'https://github.com/login/oauth/access_token',scopes:['read:user','read:org'],pkce:true},
  TIKTOK:{authorize:'https://www.tiktok.com/v2/auth/authorize/',token:'https://open.tiktokapis.com/v2/oauth/token/',scopes:['user.info.basic'],pkce:false}
 };
-export type ProviderOverride={clientId?:string;clientSecret?:string;callback?:string;enabled?:boolean;graphVersion?:string;purpose?:'user'|'official'};
+export type ProviderOverride={clientId?:string;clientSecret?:string;callback?:string;enabled?:boolean;graphVersion?:string;purpose?:'user'|'official';scopes?:string[]};
 export function configuration(platform:Platform,override:ProviderOverride={}){
  const aliases={...credentials(platform),...override},missing:string[]=[];
  if(!aliases.clientId)missing.push(aliases.clientField);
@@ -25,7 +27,7 @@ export function configuration(platform:Platform,override:ProviderOverride={}){
  const redirect=aliases.callback||expected;
  const legacy=process.env.APP_URL+'/api/social/'+platform.toLowerCase()+'/callback';
  if(redirect!==expected&&redirect!==legacy)missing.push(aliases.callbackField+'_MATCH');
- return {platform,clientId:aliases.clientId,clientSecret:aliases.clientSecret,redirect,definition:{...definitions[platform],scopes:override.purpose==='official'&&platform==='FACEBOOK'?['public_profile','pages_show_list','pages_read_engagement']:definitions[platform].scopes},version,purpose:override.purpose||'user',ready:missing.length===0&&aliases.enabled,missing,status:missing.length?'awaiting_credentials':aliases.enabled?'ready':'disabled'};
+ return {platform,clientId:aliases.clientId,clientSecret:aliases.clientSecret,redirect,definition:{...definitions[platform],scopes:[...new Set([...definitions[platform].scopes,...(override.scopes||[]),...(override.purpose==='official'&&platform==='FACEBOOK'?['pages_show_list','pages_read_engagement']:[])])]},version,purpose:override.purpose||'user',ready:missing.length===0&&aliases.enabled,missing,status:missing.length?'awaiting_credentials':aliases.enabled?'ready':'disabled'};
 }
 export function readiness(){
  return socialPlatforms.map(platform=>{const c=configuration(platform);return {platform,status:c.status,ready:c.ready,missing:c.missing,scopes:c.definition.scopes,rewardedActionsEnabled:false};});
@@ -44,7 +46,7 @@ export function authorizationUrl(platform:Platform,state:string,verifier:string,
 type Json=Record<string,unknown>;
 export type TokenProfile={accountId:string;name:string;tokens:{accessToken:string;refreshToken?:string;expiresAt:number};scopes:string[];targets?:{accountId:string;name:string;accountType:string;profileUrl:string;tokens?:{accessToken:string;refreshToken?:string;expiresAt:number}}[]};
 async function json(fetcher:typeof fetch,url:string,init:RequestInit={}):Promise<Json>{
- const response=await fetcher(url,{...init,signal:AbortSignal.timeout(10000)});
+ const response=await fetcher(url,{...init,redirect:'error',signal:AbortSignal.timeout(10000)});
  if(!response.ok)throw new Error('Provider request rejected');
  const text=await response.text();if(text.length>1000000)throw new Error('Provider response too large');
  const value=JSON.parse(text);if(!value||typeof value!=='object'||Array.isArray(value))throw new Error('Provider response invalid');return value;
@@ -68,14 +70,16 @@ export async function exchange(platform:Platform,code:string,verifier:string,non
  if(platform==='INSTAGRAM'){const form=new FormData();for(const [k,v]of body)form.set(k,v);requestBody=form;delete headers['Content-Type'];}
  const token=await json(fetcher,c.definition.token.replace('VERSION',c.version),{method:'POST',headers,body:requestBody});
  const accessToken=text(token.access_token),refreshToken=typeof token.refresh_token==='string'?token.refresh_token:undefined;
- const scopes=typeof token.scope==='string'?token.scope.split(/[ ,]+/).filter(Boolean):c.definition.scopes;
- if((platform==='X'||platform==='TIKTOK'||platform==='YOUTUBE')&&(typeof token.scope!=='string'||!c.definition.scopes.every(scope=>scopes.includes(scope))))throw new Error('Required permissions not granted');
+ const scopes=typeof token.scope==='string'?token.scope.split(/[ ,]+/).filter(Boolean):Array.isArray(token.scope)&&token.scope.every(s=>typeof s==='string')?token.scope as string[]:c.definition.scopes;
+ if((['X','TIKTOK','YOUTUBE','KICK','TWITCH'].includes(platform))&&((typeof token.scope!=='string'&&!Array.isArray(token.scope))||!c.definition.scopes.every(scope=>scopes.includes(scope))))throw new Error('Required permissions not granted');
  const get=(url:string)=>json(fetcher,url,{headers:{Authorization:'Bearer '+accessToken}});
  let accountId='',name='';let targets:TokenProfile['targets'];
  if(platform==='TELEGRAM'){const identity=await telegramIdentity(text(token.id_token),c.clientId,nonce);accountId=identity.accountId;name=identity.name;}
  else if(platform==='X'){const profile=await get('https://api.x.com/2/users/me');const user=profile.data as Json;accountId=text(user?.id);name=text(user?.username||user?.name);}
  else if(platform==='YOUTUBE'){const profile=await get('https://www.googleapis.com/youtube/v3/channels?part=id,snippet&mine=true&maxResults=1');const channel=(profile.items as Json[]|undefined)?.[0];accountId=text(channel?.id);name=text((channel?.snippet as Json|undefined)?.title);}
  else if(platform==='TIKTOK'){const profile=await get('https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name');const user=(profile.data as Json|undefined)?.user as Json|undefined;accountId=text(user?.open_id);name=text(user?.display_name);}
+ else if(platform==='KICK'){const profile=await get('https://api.kick.com/public/v1/users');const user=(profile.data as Json[]|undefined)?.[0];const id=user?.user_id||user?.id;if(typeof id!=='string'&&!(typeof id==='number'&&Number.isSafeInteger(id)))throw new Error('Kick identity invalid');accountId=String(id);name=text(user?.name||user?.username);}
+ else if(platform==='TWITCH'){const validation=await json(fetcher,'https://id.twitch.tv/oauth2/validate',{headers:{Authorization:'OAuth '+accessToken}});if(validation.client_id!==c.clientId)throw new Error('Twitch token client mismatch');const profile=await json(fetcher,'https://api.twitch.tv/helix/users',{headers:{Authorization:'Bearer '+accessToken,'Client-Id':c.clientId}});const user=(profile.data as Json[]|undefined)?.[0];accountId=text(user?.id);name=text(user?.login||user?.display_name);if(validation.user_id!==accountId)throw new Error('Twitch identity mismatch');}
  else if(platform==='DISCORD'){const profile=await get('https://discord.com/api/v10/users/@me');accountId=text(profile.id);name=text(profile.username);if(c.purpose==='official'){const result=await fetcher('https://discord.com/api/v10/users/@me/guilds',{headers:{Authorization:'Bearer '+accessToken},signal:AbortSignal.timeout(10000)});if(!result.ok)throw new Error('Guild permissions required');const guilds=await result.json() as {id:string;name:string;owner?:boolean;permissions?:string}[];targets=guilds.filter(g=>g.owner||!!(BigInt(g.permissions||'0')&40n)).map(g=>({accountId:g.id,name:g.name,accountType:'GUILD',profileUrl:''}));}}
  else if(platform==='GITHUB'){const profile=await get('https://api.github.com/user');accountId=String(profile.id);name=text(profile.login);}
  else if(platform==='FACEBOOK'){const proof=createHmac('sha256',c.clientSecret).update(accessToken).digest('hex');const profile=await get('https://graph.facebook.com/'+c.version+'/me?fields=id,name&appsecret_proof='+proof);accountId=text(profile.id);name=text(profile.name);if(c.purpose==='official'){const pages=await get('https://graph.facebook.com/'+c.version+'/me/accounts?fields=id,name,access_token');targets=((pages.data||[])as Json[]).map(page=>({accountId:text(page.id),name:text(page.name),accountType:'PAGE',profileUrl:'https://www.facebook.com/'+text(page.id),tokens:{accessToken:text(page.access_token),expiresAt:Date.now()+3600000}}));}}

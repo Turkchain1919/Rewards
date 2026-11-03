@@ -1,5 +1,24 @@
 # ENV ve konfigürasyon sözlüğü
 
+## v0.5.0 güncel kapsam — 3 Kasım 2026
+
+Kaynak dalı `feature/multi-social-rewards-engine`; önceki canlı sürüm `3c85ac1a29b51d86d74d1fe7cc847ee391f7a4c0` (v0.4.5). Aşağıdaki eski envanterler tarihsel kanıttır; güncel modüller ve sınırlar bu bölüm ile sosyal dokümanlarda açıklanır. Çalışan tam SHA, `.runtime/deployment.json` ve `.runtime/validated.json` üzerinden doğrulanır; bu dosyanın bulunduğu commit kendi hashini içermez. Yayın sonucu [PRODUCTION_RELEASE_REPORT.md](PRODUCTION_RELEASE_REPORT.md).
+
+8 platform ve 65 görev tanımı vardır. Katalogda bulunması gerçek API bağlantısı veya ödüllü yayın izni değildir. X/YouTube teşvikli etkileşimleri politika nedeniyle kapalı; Meta/TikTok normal ticari API yetenekleri sınırlı; Kick/Twitch ödüllü etkileşimleri izin incelemesi olmadan kapalıdır. Sadece mevcut Telegram üyelik doğrulaması ve açıkça yapılandırılacak özel bot kanıtları uygulanmıştır. Hiçbir yeni canlı görev/kampanya otomatik oluşturulmaz. Tekrarlanabilir görevler reddedilir. Claim ve gerçek transferler kapalıdır.
+
+Mevcut Telegram görevi kullanıcı başına **1 TURK**, **25 kullanıcı**, ortak kampanya **25 TURK** bütçesidir; 10 TURK eski taslaktır. Üç kampanya/dört görev korunur. `REWARD_CLAIMS_PAUSED=true`; master ödeme yetkisi tanımsızken etkin değer false olur. Telegram GROUP `-1003676977941` string olarak korunur. Gizli değerler dokümantasyona yazılmaz.
+
+Kick/Twitch opsiyonel yeni ENV isimleri `KICK_*` ve `TWITCH_*`: CLIENT_ID, CLIENT_SECRET, CALLBACK_URL, ENABLED, ACCESS_TOKEN, REFRESH_TOKEN, CHANNEL_ID, CHANNEL_NAME, CHANNEL_URL, DEFAULT_TARGET_URL. OAuth için CLIENT_ID/CLIENT_SECRET ve kanonik callback zorunlu; ENABLED defaultfalse. Token/hedef aliasları yalnız legacy bootstrap fallbacktır; panelin şifreli Credential kayıtları tercih edilir. WEBHOOK_SECRET de mevcut ortak secretValues mekanizmasıyla okunur. `.env.example` boş örnekler içerir, gerçek değer içermez. Bu çalışma production ENV içine API anahtarı yazmaz.
+
+`IntegrationSetting.requestedScopes`, `webhookEnabled`, `webhookVerifiedAt` DB ayarlarıdır, ENV değildir. Kullanıcı bağlantısı platformun minimum kimlik izinleriyle yapılır; yönetici seçili ilave scope yalnız resmî hesap OAuth akışına uygulanır. Webhook sırları encrypted Credential içinde saklanır. Redirect URI APP_URL originine bağlıdır. Panel API yanıtları secret yerine yalnız configured/stored/expiry durumları döndürür.
+
+TEST ve production farklı DATABASE_URL,REDIS_URL,DATA_ENCRYPTION_KEY,session/port/origin kullanır; değerler burada listelenmez. Yeni Kick/Twitch canlı credentials yoksa NOT_CONFIGURED gösterilir. Aşağıdaki eski ENV varlık tablosu tarihsel snapshot olup yeni provider doluluğunu göstermez.
+
+---
+
+## Önceki sürüm envanteri (tarihsel)
+
+
 Doğrulama anı: 2026-11-02T22:34:00.042Z. Production sürümü: **0.4.5 / `cc61b966bf684ad2f602b36100c3bf1de7f4d0a7`**. Bu doküman TEST dalında hazırlanmıştır; bu çalışmada production kodu/verisi/configuration değiştirilmez. Yollar sunucu `138.226.246.138` üzerindedir. Gerçek ENV/credential değerleri açıklanmaz.
 
 ## Kapsam ve öncelik

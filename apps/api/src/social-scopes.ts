@@ -1,0 +1,4 @@
+import {socialTaskCatalog} from './social-catalog';
+import type {OfficialPlatform} from './social-config';
+const base:Record<string,string[]>={X:['tweet.read','users.read','offline.access'],TELEGRAM:['openid','profile'],FACEBOOK:['public_profile','pages_show_list','pages_read_engagement'],INSTAGRAM:['instagram_business_basic'],YOUTUBE:['https://www.googleapis.com/auth/youtube.readonly'],KICK:['user:read','channel:read','events:subscribe'],TWITCH:['user:read:chat','user:bot','channel:bot','moderator:read:followers','channel:read:subscriptions','user:read:subscriptions','channel:read:redemptions'],TIKTOK:['user.info.basic','video.list'],DISCORD:['identify','guilds'],GITHUB:['read:user','read:org']};
+export function allowedScopes(platform:OfficialPlatform){return [...new Set([...(base[platform]||[]),...socialTaskCatalog.filter(row=>row.platform===platform).flatMap(row=>row.requiredScopes)])];}

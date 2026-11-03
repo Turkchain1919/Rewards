@@ -4,6 +4,8 @@ import {DataService} from './data';
 import {OfficialPlatform,officialPlatforms,officialAccount,value} from './social-config';
 import {configuration,Platform,ProviderOverride} from './providers';
 import {z} from 'zod';
+import {socialTaskCatalog} from './social-catalog';
+import {allowedScopes} from './social-scopes';
 export const settingInput=z.object({version:z.number().int().min(0),enabledOverride:z.boolean().nullable().optional(),callbackUrl:z.string().url().max(2048).nullable().optional(),graphVersion:z.string().regex(/^v[0-9]+\.[0-9]+$/).nullable().optional(),disabled:z.boolean(),name:z.string().trim().max(100).nullable(),profileUrl:z.string().url().max(2048).nullable(),accountId:z.string().max(200).nullable(),defaultTargetUrl:z.string().url().max(2048).nullable()}).strict().refine(v=>[v.profileUrl,v.defaultTargetUrl].every(u=>!u||new URL(u).protocol==='https:'&&!new URL(u).username&&!new URL(u).password));
 export class ProviderFailure extends Error{constructor(readonly reason:string,readonly retryAfter=0){super(reason);}}
 async function request(url:string,headers:Record<string,string>={}){
@@ -19,31 +21,31 @@ export class IntegrationSettings {
  async secretValues(platform:OfficialPlatform){
   const raw=await this.secrets.get('SOCIAL_PLATFORM',platform,'OAUTH_CONFIG'),saved=raw?JSON.parse(raw) as Record<string,string>:{};
   return {
-   apiKey:value([platform+'_API_KEY']),apiSecret:value([platform+'_API_SECRET']),accessToken:platform==='FACEBOOK'?value(['FACEBOOK_ACCESS_TOKEN','FACEBOOK_PAGE_ACCESS_TOKEN']):value([platform+'_ACCESS_TOKEN']),refreshToken:value([platform+'_REFRESH_TOKEN']),bearerToken:value([platform+'_BEARER_TOKEN']),botToken:value([platform+'_BOT_TOKEN']),pageAccessToken:value([platform+'_PAGE_ACCESS_TOKEN']),...saved
+   webhookSecret:value([platform+'_WEBHOOK_SECRET']),apiKey:value([platform+'_API_KEY']),apiSecret:value([platform+'_API_SECRET']),accessToken:platform==='FACEBOOK'?value(['FACEBOOK_ACCESS_TOKEN','FACEBOOK_PAGE_ACCESS_TOKEN']):value([platform+'_ACCESS_TOKEN']),refreshToken:value([platform+'_REFRESH_TOKEN']),bearerToken:value([platform+'_BEARER_TOKEN']),botToken:value([platform+'_BOT_TOKEN']),pageAccessToken:value([platform+'_PAGE_ACCESS_TOKEN']),...saved
   };
  }
  async runtime(platform:Platform,purpose:'user'|'official'='user'):Promise<ProviderOverride>{
   const setting=await this.data.db.integrationSetting.findUnique({where:{platform}});
   const stored=await this.secrets.get('SOCIAL_PLATFORM',platform,'OAUTH_CONFIG');
   const values=stored?JSON.parse(stored) as Record<string,string>:{};
-  return {purpose,...(values.clientId?{clientId:values.clientId}:{}),...(values.clientSecret?{clientSecret:values.clientSecret}:{}),...(setting?.callbackUrl?{callback:setting.callbackUrl}:{}),...(setting?.graphVersion?{graphVersion:setting.graphVersion}:{}),...(setting?.enabledOverride!==null&&setting?.enabledOverride!==undefined?{enabled:setting.enabledOverride&&!setting.disabled}:setting?.disabled?{enabled:false}:{})};
+  return {purpose,scopes:purpose==='official'?setting?.requestedScopes||[]:[],...(values.clientId?{clientId:values.clientId}:{}),...(values.clientSecret?{clientSecret:values.clientSecret}:{}),...(setting?.callbackUrl?{callback:setting.callbackUrl}:{}),...(setting?.graphVersion?{graphVersion:setting.graphVersion}:{}),...(setting?.enabledOverride!==null&&setting?.enabledOverride!==undefined?{enabled:setting.enabledOverride&&!setting.disabled}:setting?.disabled?{enabled:false}:{})};
  }
  async list(){
-  const overrides=await this.data.db.integrationSetting.findMany(),linked=await this.data.db.officialSocialAccount.findMany({where:{deletedAt:null,connectionStatus:'CONNECTED',credential:{ciphertext:{not:null},revokedAt:null}},select:{platform:true}}),oauth=await Promise.all(officialPlatforms.map(async platform=>{const runtime=await this.runtime(platform),c=configuration(platform,runtime),secret=await this.secretValues(platform);const fields=Object.entries({...secret,clientId:c.clientId,clientSecret:c.clientSecret}).filter(([,v])=>!!v).map(([k])=>k);return {platform,status:c.status,ready:c.ready,missing:c.missing,configuredFields:fields};}));
+  const overrides=await this.data.db.integrationSetting.findMany(),linked=await this.data.db.officialSocialAccount.findMany({where:{deletedAt:null,enabled:true,connectionStatus:'CONNECTED',OR:[{credential:{ciphertext:{not:null},revokedAt:null}},{platform:'TELEGRAM',lastSuccessAt:{not:null}}]},select:{platform:true}}),oauth=await Promise.all(officialPlatforms.map(async platform=>{const runtime=await this.runtime(platform),c=configuration(platform,runtime),secret=await this.secretValues(platform);const fields=Object.entries({...secret,clientId:c.clientId,clientSecret:c.clientSecret}).filter(([,v])=>!!v).map(([k])=>k);return {platform,status:c.status,ready:c.ready,missing:c.missing,configuredFields:fields};}));
   return officialPlatforms.map(platform=>{
    const env=officialAccount(platform),setting=overrides.find(s=>s.platform===platform),connection=oauth.find(s=>s.platform===platform);
    const effectiveEnabled=(setting?.enabledOverride??env.enabled)&&!setting?.disabled;
    const connected=linked.some(a=>a.platform===platform),authenticatedFailure=!!setting?.lastError&&['HTTP_401','HTTP_403','AUTHENTICATION_FAILED'].includes(setting.lastError);
    const mode=setting?.authMode||'oauth';
    const apiFields=connection?.configuredFields||[];
-   const apiMissing:Record<string,string[]>={X:apiFields.some(k=>['accessToken','bearerToken'].includes(k))?[]:['X_ACCESS_TOKEN_OR_BEARER_TOKEN'],TELEGRAM:apiFields.includes('botToken')?[]:['TELEGRAM_BOT_TOKEN'],FACEBOOK:apiFields.some(k=>['accessToken','pageAccessToken'].includes(k))?[]:['FACEBOOK_PAGE_ACCESS_TOKEN'],INSTAGRAM:apiFields.includes('accessToken')?[]:['INSTAGRAM_ACCESS_TOKEN'],YOUTUBE:apiFields.some(k=>['apiKey','accessToken'].includes(k))?[]:['YOUTUBE_API_KEY_OR_ACCESS_TOKEN'],TIKTOK:apiFields.includes('accessToken')?[]:['TIKTOK_ACCESS_TOKEN'],DISCORD:apiFields.some(k=>['botToken','accessToken'].includes(k))?[]:['DISCORD_BOT_TOKEN_OR_ACCESS_TOKEN'],GITHUB:mode==='public'||apiFields.includes('accessToken')?[]:['GITHUB_ACCESS_TOKEN']};
+   const apiMissing:Record<string,string[]>={KICK:apiFields.includes('accessToken')?[]:['KICK_ACCESS_TOKEN'],TWITCH:apiFields.includes('accessToken')?[]:['TWITCH_ACCESS_TOKEN'],X:apiFields.some(k=>['accessToken','bearerToken'].includes(k))?[]:['X_ACCESS_TOKEN_OR_BEARER_TOKEN'],TELEGRAM:apiFields.includes('botToken')?[]:['TELEGRAM_BOT_TOKEN'],FACEBOOK:apiFields.some(k=>['accessToken','pageAccessToken'].includes(k))?[]:['FACEBOOK_PAGE_ACCESS_TOKEN'],INSTAGRAM:apiFields.includes('accessToken')?[]:['INSTAGRAM_ACCESS_TOKEN'],YOUTUBE:apiFields.some(k=>['apiKey','accessToken'].includes(k))?[]:['YOUTUBE_API_KEY_OR_ACCESS_TOKEN'],TIKTOK:apiFields.includes('accessToken')?[]:['TIKTOK_ACCESS_TOKEN'],DISCORD:apiFields.some(k=>['botToken','accessToken'].includes(k))?[]:['DISCORD_BOT_TOKEN_OR_ACCESS_TOKEN'],GITHUB:mode==='public'||apiFields.includes('accessToken')?[]:['GITHUB_ACCESS_TOKEN']};
    const missing=mode==='oauth'?(connection?.missing||[]):apiMissing[platform];
    const configured=mode==='oauth'?!!connection?.ready:missing.length===0;
-   const status=!effectiveEnabled?'disabled':authenticatedFailure?'authentication_failed':connected?'connected':configured?'configured':'awaiting_credentials';
+   const status=!effectiveEnabled?'disabled':authenticatedFailure?'authentication_failed':connected&&configured?'connected':configured?'configured':'awaiting_credentials';
    return {...env,authMode:setting?.authMode||'oauth',callbackUri:setting?.callbackUrl||process.env[platform+'_CALLBACK_URL']||process.env[platform+'_REDIRECT_URI']||process.env.APP_URL+'/api/oauth/'+platform.toLowerCase()+'/callback',graphVersion:setting?.graphVersion||process.env.META_GRAPH_VERSION||'',configured:!!configured,configuredFields:connection?.configuredFields||[],name:setting?.name??env.name,accountId:setting?.accountId??env.accountId,profileUrl:setting?.profileUrl??env.profileUrl,defaultTargetUrl:setting?.defaultTargetUrl??env.defaultTargetUrl,enabled:(setting?.enabledOverride??env.enabled)&&!setting?.disabled,
     status,ready:!!connection?.ready&&!setting?.disabled,
     oauthStatus:connection?.status||'not_implemented',apiStatus:setting?.lastTestStatus||'not_tested',
-    missing:[...new Set([...missing,...env.configurationErrors])],availableTaskTypes:[],rewardedActionsEnabled:false,version:setting?.version||0,disabledOverride:!!setting?.disabled,lastSuccessfulConnection:setting?.lastSuccessAt||null,lastApiError:setting?.lastError||null,
+    missing:[...new Set([...missing,...env.configurationErrors])],availableTaskTypes:socialTaskCatalog.filter(t=>t.platform===platform&&t.rewardEnabled).map(t=>t.code),rewardedActionsEnabled:platform==='TELEGRAM'&&effectiveEnabled&&configured&&connected&&apiFields.includes('botToken'),allowedScopes:allowedScopes(platform),requestedScopes:setting?.requestedScopes||[],oauthScopes:configuration(platform,{scopes:setting?.requestedScopes||[]}).definition.scopes,accessTokenConfigured:apiFields.includes('accessToken')||apiFields.includes('pageAccessToken'),refreshTokenConfigured:apiFields.includes('refreshToken'),webhookSecretConfigured:apiFields.includes('webhookSecret'),webhookUrl:process.env.APP_URL+'/api/social/webhooks/'+platform.toLowerCase(),webhookEnabled:setting?.webhookEnabled||false,webhookVerifiedAt:setting?.webhookVerifiedAt||null,version:setting?.version||0,disabledOverride:!!setting?.disabled,lastSuccessfulConnection:setting?.lastSuccessAt||null,lastApiError:setting?.lastError||null,
     source:setting?'environment_with_audited_overrides':'environment'};
   });
  }
@@ -61,20 +63,27 @@ export class IntegrationSettings {
    return {ok:true,version:b.version+1};
   },{isolationLevel:'Serializable'});
  }
- async configure(platform:OfficialPlatform,actor:string,body:{credentials:Record<string,string>;redirectUri:string;enabled:boolean;mode:string;graphVersion?:string;version?:number}){
+ async configure(platform:OfficialPlatform,actor:string,body:{credentials:Record<string,string>;redirectUri:string;enabled:boolean;mode:string;graphVersion?:string;version?:number;requestedScopes?:string[];webhookEnabled?:boolean}){
   if((body.mode==='bot'&&platform!=='TELEGRAM')||(body.mode==='public'&&platform!=='GITHUB'))throw new BadRequestException('Unsupported provider authorization mode');
+  if(body.requestedScopes?.some(scope=>!allowedScopes(platform).includes(scope)))throw new BadRequestException('Unsupported OAuth scope');
   const previous=await this.secrets.get('SOCIAL_PLATFORM',platform,'OAUTH_CONFIG'),stored=previous?JSON.parse(previous) as Record<string,string>:{};
   const entered=Object.fromEntries(Object.entries(body.credentials).filter(([,v])=>v.trim()));
+  if(platform==='TELEGRAM'&&entered.webhookSecret&&!/^[A-Za-z0-9_-]{1,256}$/.test(entered.webhookSecret))throw new BadRequestException('Telegram webhook secret must use safe ASCII characters');
+  if(body.webhookEnabled&&!['TELEGRAM','TWITCH','KICK','FACEBOOK','INSTAGRAM'].includes(platform))throw new BadRequestException('Webhook receiver not supported for this platform');
   const values={...stored,...entered},runtime=await this.runtime(platform),base=configuration(platform,runtime);
-  const c=configuration(platform,{...runtime,clientId:values.clientId||base.clientId,clientSecret:values.clientSecret||base.clientSecret,callback:body.redirectUri,enabled:true,graphVersion:body.graphVersion||base.version});
-  let missing:string[]=[];
-  if(body.mode==='oauth')missing=c.missing;
+  const c=configuration(platform,{...runtime,clientId:values.clientId||base.clientId,clientSecret:values.clientSecret||base.clientSecret,callback:body.redirectUri,enabled:true,graphVersion:body.graphVersion||base.version,...(body.requestedScopes?{scopes:body.requestedScopes}:{})});
+  const missing:string[]=[];
+  if(body.webhookEnabled&&['FACEBOOK','INSTAGRAM'].includes(platform)){if(!(values.webhookSecret||value([platform+'_WEBHOOK_SECRET'])))missing.push(platform+'_WEBHOOK_VERIFY_TOKEN');if(!c.clientSecret)missing.push(platform+'_APP_SECRET');}
+  if(body.webhookEnabled&&['TELEGRAM','TWITCH'].includes(platform)&&!(values.webhookSecret||value([platform+'_WEBHOOK_SECRET'])))missing.push(platform+'_WEBHOOK_SECRET');
+
+  if(body.mode==='oauth')missing.push(...c.missing);
   else {
    const effective={...await this.secretValues(platform),...values};
-   const required:Record<string,boolean>={X:!!(effective.bearerToken||effective.accessToken),TELEGRAM:!!effective.botToken,FACEBOOK:!!(effective.pageAccessToken||effective.accessToken),INSTAGRAM:!!effective.accessToken,YOUTUBE:!!(effective.apiKey||effective.accessToken),TIKTOK:!!effective.accessToken,DISCORD:!!(effective.botToken||effective.accessToken),GITHUB:body.mode==='public'||!!effective.accessToken};
+   const required:Record<string,boolean>={KICK:!!effective.accessToken,TWITCH:!!effective.accessToken,X:!!(effective.bearerToken||effective.accessToken),TELEGRAM:!!effective.botToken,FACEBOOK:!!(effective.pageAccessToken||effective.accessToken),INSTAGRAM:!!effective.accessToken,YOUTUBE:!!(effective.apiKey||effective.accessToken),TIKTOK:!!effective.accessToken,DISCORD:!!(effective.botToken||effective.accessToken),GITHUB:body.mode==='public'||!!effective.accessToken};
    if(!required[platform])missing.push(platform+'_API_TOKEN_REQUIRED');
    if(['FACEBOOK','INSTAGRAM'].includes(platform)&&!/^v[0-9]+\.[0-9]+$/.test(body.graphVersion||base.version))missing.push('META_GRAPH_VERSION');
   }
+  const oldValues=await this.secretValues(platform),identityCredentialChanged=Object.entries(entered).some(([key,value])=>['clientId','clientSecret','botToken'].includes(key)&&value!==(key==='clientId'?base.clientId:key==='clientSecret'?base.clientSecret:oldValues.botToken));
   const canonical=process.env.APP_URL+'/api/oauth/'+platform.toLowerCase()+'/callback',legacy=process.env.APP_URL+'/api/social/'+platform.toLowerCase()+'/callback';
   if(body.redirectUri!==canonical&&body.redirectUri!==legacy)missing.push('CALLBACK_URI_MISMATCH');
   if(body.enabled&&missing.length)throw new BadRequestException('Missing or invalid: '+missing.join(', '));
@@ -82,8 +91,10 @@ export class IntegrationSettings {
    const old=await tx.integrationSetting.findUnique({where:{platform}});
    if(body.version!==undefined&&(old?.version||0)!==body.version)throw new ConflictException('Configuration version changed');
    if(Object.keys(entered).length)await this.secrets.write(tx,'SOCIAL_PLATFORM',platform,'OAUTH_CONFIG',JSON.stringify(values),actor);
-   const data={authMode:body.mode,enabledOverride:body.enabled,disabled:!body.enabled,callbackUrl:body.redirectUri,graphVersion:body.graphVersion||null,credentialsUpdatedAt:new Date(),lastError:null,lastTestStatus:'not_tested',version:(old?.version||0)+1};
+   const data={...(body.requestedScopes!==undefined?{requestedScopes:body.requestedScopes}:{}),...(body.webhookEnabled!==undefined?{webhookEnabled:body.webhookEnabled}:{}),...(entered.webhookSecret||entered.botToken||body.webhookEnabled===false?{webhookVerifiedAt:null}:{}),authMode:body.mode,enabledOverride:body.enabled,disabled:!body.enabled,callbackUrl:body.redirectUri,graphVersion:body.graphVersion||null,credentialsUpdatedAt:new Date(),lastError:null,lastTestStatus:'not_tested',version:(old?.version||0)+1};
    await tx.integrationSetting.upsert({where:{platform},create:{platform,...data},update:data});
+   if(identityCredentialChanged){await tx.officialSocialAccount.updateMany({where:{platform,deletedAt:null,connectionStatus:{in:['CONNECTED','SELECT_TARGET']}},data:{connectionStatus:'REAUTH_REQUIRED',lastError:'API_CONFIGURATION_CHANGED',version:{increment:1}}});await tx.socialAccount.updateMany({where:{provider:platform},data:{lastError:'REAUTH_REQUIRED'}});await tx.task.updateMany({where:{platform,enabled:true},data:{enabled:false,configurationRequired:true}});}
+   if(entered.webhookSecret||body.webhookEnabled===false)await tx.task.updateMany({where:{platform,enabled:true,verification:{path:['type'],equals:'SOCIAL_API'}},data:{enabled:false,configurationRequired:true}});
    if(!body.enabled)await tx.task.updateMany({where:{platform,enabled:true},data:{enabled:false,configurationRequired:true}});
    await tx.auditEvent.create({data:{actor,action:'SOCIAL_API_CONFIGURATION_SAVE',resource:platform+':'+JSON.stringify({mode:body.mode,enabled:body.enabled,updatedFields:Object.keys(entered),version:data.version})}});
   },{isolationLevel:'Serializable'});
@@ -128,6 +139,12 @@ export class IntegrationSettings {
     const token=secrets.accessToken;if(!token||!c.accountId)throw new ProviderFailure('CONFIGURATION_MISSING');
     obj=await request('https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name',{Authorization:'Bearer '+token});
     id=String(((obj.data as Record<string,unknown>)?.user as Record<string,unknown>)?.open_id||'');
+   }else if(platform==='KICK'||platform==='TWITCH'){
+    const token=secrets.accessToken;if(!token)throw new ProviderFailure('CONFIGURATION_MISSING');
+    const runtime=configuration(platform,await this.runtime(platform,'official'));
+    if(platform==='TWITCH'&&!runtime.clientId)throw new ProviderFailure('CONFIGURATION_MISSING');
+    obj=await request(platform==='KICK'?'https://api.kick.com/public/v1/users':'https://api.twitch.tv/helix/users',{Authorization:'Bearer '+token,...(platform==='TWITCH'?{'Client-Id':runtime.clientId}:{})});
+    const user=(obj.data as Record<string,unknown>[]|undefined)?.[0];id=String(user?.user_id||user?.id||'');
    }else if(platform==='DISCORD'){
     const token=secrets.botToken;if(!token||!c.accountId)throw new ProviderFailure('CONFIGURATION_MISSING');
     obj=await request('https://discord.com/api/v10/guilds/'+encodeURIComponent(c.accountId),{Authorization:'Bot '+token});id=String(obj.id||'');

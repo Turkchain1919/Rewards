@@ -64,6 +64,7 @@ test('25-user quota survives concurrent awards, closes atomically, preserves one
   await assert.rejects(()=>engine.taskState(actor,taskId,true),/reward limit reached/);
   assert.equal((await engine.balances(users[0],network.networkKey)).AVAILABLE,unit);
  }finally{
+  await db.socialRewardIdentity.deleteMany({where:{taskId:taskId||'__none__'}});
   // Only this test's isolated fixture rows; never production or real reward history.
   const entries=await db.ledgerEntry.findMany({where:{campaignId:campaignId||'__none__'},select:{id:true}});
   await db.ledgerEvent.deleteMany({where:{ledgerId:{in:entries.map(r=>r.id)}}});await db.ledgerEntry.deleteMany({where:{id:{in:entries.map(r=>r.id)}}});

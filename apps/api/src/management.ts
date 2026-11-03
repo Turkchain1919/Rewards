@@ -44,7 +44,7 @@ export class ManagementController {
  @Get('integrations')async integrations(@Req()req:Request){await this.manage(req);return this.settings.list();}
  @Post('social-api/:platform')async socialConfigure(@Param('platform')platform:string,@Body()body:unknown,@Req()req:Request){
   origin(req);const {admin}=await this.auth.admin(req,['OWNER']);
-  const b=parse(z.object({credentials:z.record(z.string().regex(/^(clientId|clientSecret|apiKey|apiSecret|accessToken|refreshToken|bearerToken|botToken|webhookSecret|pageAccessToken)$/),z.string().max(10000)),redirectUri:z.string().url().max(2048),enabled:z.boolean(),mode:z.enum(['oauth','api','bot','public']),graphVersion:z.string().max(20).optional(),version:z.number().int().optional(),mfaCode:z.string().regex(/^[0-9]{6}$/).optional()}).strict(),body);
+  const b=parse(z.object({credentials:z.record(z.string().regex(/^(clientId|clientSecret|apiKey|apiSecret|accessToken|refreshToken|bearerToken|botToken|webhookSecret|pageAccessToken)$/),z.string().max(10000)),redirectUri:z.string().url().max(2048),enabled:z.boolean(),mode:z.enum(['oauth','api','bot','public']),graphVersion:z.string().max(20).optional(),version:z.number().int().optional(),requestedScopes:z.array(z.string().max(200)).max(40).optional(),webhookEnabled:z.boolean().optional(),mfaCode:z.string().regex(/^[0-9]{6}$/).optional()}).strict(),body);
   await this.auth.stepUp(req,b.mfaCode);
   return this.settings.configure(parse(z.enum(officialPlatforms),platform.toUpperCase()),admin.id,b);
  }

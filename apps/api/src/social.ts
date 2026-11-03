@@ -15,7 +15,7 @@ export class SocialController {
  platform(name:string):Platform{return parse(z.enum(socialPlatforms),name.toUpperCase());}
  @Get('accounts')async accounts(@Req()req:Request){
   const user=await this.auth.user(req);
-  const accounts=await this.auth.data.db.socialAccount.findMany({where:{userId:user.id},select:{provider:true,accountName:true,expiresAt:true,createdAt:true,scopes:true}});
+  const accounts=await this.auth.data.db.socialAccount.findMany({where:{userId:user.id},select:{provider:true,accountName:true,expiresAt:true,createdAt:true,scopes:true,lastError:true}});
   return (await this.settings.list()).map(provider=>({...provider,account:accounts.find(a=>a.provider===provider.platform)||null}));
  }
  @Post(':provider/connect')async connect(@Param('provider')name:string,@Req()req:Request,@Res({passthrough:true})res:Response){

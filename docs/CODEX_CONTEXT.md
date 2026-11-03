@@ -1,81 +1,85 @@
-# CODEX_CONTEXT — yeni oturum başlangıç referansı
+# CODEX_CONTEXT — Turkchain® Rewards
 
-> Güncel yönetici geliştirmesi: [ADMIN_REWARD_LIMITS.md](ADMIN_REWARD_LIMITS.md). Yayınlanmış görevlerde ödül/kontenjan/tarih ve ortak bütçe onayla değiştirilebilir; kayıtlar korunur, görev pasife alınır. Bu özellik mevcut canlı Telegram1/25/25 ayarlarını kendiliğinden değiştirmez.
+Her yeni geliştirme öncesinde CODEX_CONTEXT.md ve ilgili teknik dokümantasyon dosyalarını oku. Önce mevcut mimariyi incele, ardından değişiklik yap. Dokümantasyonla mevcut kod arasında farklılık varsa önce mevcut kodu esas al ve dokümantasyonu güncelle.
 
-> **2026-11-03 güncel çalışma:** Önceki 10 TURK taslağı yerine kullanıcı 1 TURK × ilk25 kullanıcı / toplam25TURK ve TEST sonrası productionyayınını onayladı. Güncel plan ve doğrulama koşulları [REWARD25_RELEASE_READINESS](REWARD25_RELEASE_READINESS.md), tam payload [TELEGRAM_REWARD25_TASK.json](TELEGRAM_REWARD25_TASK.json), Instagram açıklaması [INSTAGRAM_READINESS](INSTAGRAM_READINESS.md). Aşağıdaki bilgiler önceki snapshot olabilir; çalışanSHA ve gerçekyayınsonucu dış PROJECT_HANDOFF.md/deploymentmanifest esas alınarak doğrulanır.
+## Proje, sürüm ve kayıtlar
 
-Doğrulama anı: 2026-11-02T22:34:00.042Z. Production sürümü: **0.4.5 / `cc61b966bf684ad2f602b36100c3bf1de7f4d0a7`**. Bu doküman TEST dalında hazırlanmıştır; bu çalışmada production kodu/verisi/configuration değiştirilmez. Yollar sunucu `138.226.246.138` üzerindedir. Gerçek ENV/credential değerleri açıklanmaz.
+Turkchain Rewards, cüzdanla giriş yapan kullanıcıların izinli topluluk görevlerini tamamlayıp TURK iç muhasebe bakiyesi kazandığı bir web uygulamasıdır. İç bakiye gerçek blockchain transferi değildir.
 
-## Zorunlu okuma kuralı
+Bu kaynak v0.5.0 Multi-Social altyapısıdır; geliştirme dalı `feature/multi-social-rewards-engine`. Önceki production commit: `3c85ac1a29b51d86d74d1fe7cc847ee391f7a4c0` (v0.4.5). Eski `e74ac22` veya `cc61b966` referanslarını güncel canlı sürüm saymayın. Kesin çalışan SHA: production `.runtime/deployment.json`, `current` symlink ve Git HEAD birlikte kontrol edilir. Tamamlanmış yayın kanıtı `PRODUCTION_RELEASE_REPORT.md` içinde tarif edilen dış rapor/artefactlardadır; aday raporu tek başına yayın kanıtı değildir.
 
-"Her yeni geliştirme öncesinde CODEX_CONTEXT.md ve ilgili teknik dokümantasyon dosyalarını oku. Önce mevcut mimariyi incele, ardından değişiklik yap. Dokümantasyonla mevcut kod arasında farklılık varsa önce mevcut kodu esas al ve dokümantasyonu güncelle."
+Sunucu `138.226.246.138`; TEST `/var/www/rewards.turkscan.com/REWARDSTEST`; production `/var/www/rewards.turkscan.com/rewards`; domain https://rewards.turkscan.com. GitHub `Turkchain1919/Rewards`. Dış ilerleme kaydı `/var/www/rewards.turkscan.com/PROJECT_HANDOFF.md`.
 
-Bu dosya `/var/www/rewards.turkscan.com/REWARDSTEST/docs/CODEX_CONTEXT.md` konumundadır. [PROJECT_DOCUMENTATION](PROJECT_DOCUMENTATION.md) kapsamlı referans, [CURRENT_STATUS](CURRENT_STATUS.md) operasyon/görev kararı, [CHANGELOG](CHANGELOG.md) gerçek geçmiş, diğer belgeler API/DB/ENV/deployment ayrıntısıdır. Bilgi snapshot'tır; her oturum gerçek Git/runtime/DB durumuyla doğrulanır.
+TurkScan companion sunucusu `138.226.240.16` üzerindeki `/root/frontend/CODEX_PROGRESS.md` ve uzak AGENTS.md ilk okunur; ayrı TurkScan kaynaklarına/containerlarına dokunulmaz. Ortak flock yolu `/root/frontend/.codex/session.lock`. İlerleme önemli adımlardan sonra, en geç5dakikada atomik kaydedilir. Yarım build/deploy başarı değildir. Sırlar, `.env` içerikleri ve tokenlar rapora yazılmaz.
 
-## Ne yapıyoruz?
+## Ortamlar ve servisler
 
-Turkchain® Rewards; SIWE cüzdan kimliği, optional görev-gerektiren sosyal kimlik, policy-izinli görev doğrulaması ve exact wei iç Reward Ledger platformudur. Native TURK ödemesi ayrı claim katmanı; şu anda kapalı. FIRST_PARTY/TURKCHAIN eğitim ve TELEGRAM_MEMBERSHIP istisnası dışında sosyal engagement reward policy kapalı.
+| Alan | TEST | PRODUCTION |
+|---|---|---|
+| Web / API | 18190 / 18290 | 18191 / 18291 |
+| Redis | 18390 | 18391 |
+| PostgreSQL14 DB | rewards_test | rewards_production |
+| Origin | http://127.0.0.1:18480 | https://rewards.turkscan.com |
+| systemd | rewards-test-{api,web,worker,redis} | rewards-prod-{api,web,worker,redis} |
 
-Production root sürüm **0.4.5**, SHA `cc61b966bf684ad2f602b36100c3bf1de7f4d0a7`; `.runtime/deployment.json` ve current artifact ile eşleşti. TEST bu SHA temelli `feature/telegram-validation-technical-docs` dalında yeni negatif hedef validation/dokümantasyon içerir; henüz production'da değildir. Root package version0.4.5 ve workspace0.1.0 ayrımını unutma. Production GitHub main eski yayın SHA'sında kalmalı; bu çalışmada push/deploy yok.
+PostgreSQL14 port5432 kullanılır. Nginx production HTTPS/Let's Encrypt, TEST yalnız loopback HTTP'dir. Kaynak, DB rolleri, Redis, ENV ve şifreleme anahtarları ayrıdır. Production `current → .releases/<SHA>` değişmez build artefactını çalıştırır; `previous` geri dönüş artefactıdır. Rewards PM2 veya Docker Compose ile çalışmaz. Diğer projelerin Docker servisleri kapsam dışıdır.
 
-## Sunucu / ortamlar
+## Gerçek kaynak mimarisi
 
-- SSH uygulama sunucusu: root@138.226.246.138. Anahtar yalnız kullanıcı yetkilendirdiği güvenli SSH aracıyla; anahtar içeriğini/kopyasını/ENV secretlarını belgelere yazma.
-- TEST `/var/www/rewards.turkscan.com/REWARDSTEST`; DB rewards_test PostgreSQL14/5432, Redis18390/DB0, web18190/API18290, Nginx loopback18480. Browser origin tam `http://127.0.0.1:18480`; localhost farklı origin olabilir.
-- PRODUCTION `/var/www/rewards.turkscan.com/rewards`; runtime `/var/www/rewards.turkscan.com/rewards/current` → `.releases/<SHA>`, previous rollback; DB rewards_production PostgreSQL14/5432, ayrı Redis18391/DB0, web18191/API18291; domain https://rewards.turkscan.com, Nginx80/443 ve Let’s Encrypt.
-- 8 systemd unit: rewards-test-{api,web,worker,redis}, rewards-prod-{api,web,worker,redis}. OS users rewards-test/rewards-prod. PostgreSQL16/5433 aynı hostta var ama Rewards değil. Docker kurulu; Rewards container/compose bulunmadı; başka projelere dokunma.
-- ENVler ortam kökündeki .env; gerçek değerleri rapora çıkarma. Uygulama DB config/credential override kullanır; ENV doluluk tek başına provider readiness kanıtı değildir.
-- Handoff `/var/www/rewards.turkscan.com/PROJECT_HANDOFF.md`; companion TurkScan host138.226.240.16 `/root/frontend/CODEX_PROGRESS.md` ve `/root/frontend/AGENTS.md` Rewards kaynak kodu değildir. Kullanıcının restart kuralı gereği önce oradaki kaydı SSH ile oku, Git/son dosya/servis/test-build kanıtlarıyla karşılaştır.
-- Mutasyon için `/root/frontend/.codex/session.lock` flock; ilerleme her önemli işlem sonrası/en geç5dk fsync+replace ile atomik, secretsız. Çakışan aktif lock varsa yazma. Production gereksiz restart yapma.
+Next16/React19 (`apps/web/app`) → Nest12 (`apps/api/src`) → Prisma7/PostgreSQL14. Backend modülleri düz dosyalardadır; ayrı controllers/services/models klasörleri yoktur. Redis/BullMQ worker iki queue çalıştırır: maintenance15s ve social-credentials5min.
 
-## Nerede hangi kod?
+| Kaynak | Görev |
+|---|---|
+| apps/api/src/auth.ts, security.ts | SIWE kullanıcı oturumu; scrypt parola/TOTP admin; Origin, RBAC, şifreleme |
+| apps/api/src/engine.ts, policy.ts | Kampanya/görev yönetimi; Telegram üyeliği; atomic bütçe, submission, ledger ve izin kapısı |
+| apps/api/src/providers.ts, oauth-lifecycle.ts | OAuth/OIDC exchange, refresh, revoke ve kimlik denetimi |
+| apps/api/src/integration-settings.ts, official-accounts.ts | Şifreli sağlayıcı ayarları ve çoklu resmî hedefler |
+| apps/api/src/social-catalog.ts | 8 platform/65 görev için teknik/politika/izin/kaynak matrisi |
+| apps/api/src/social-engine.ts, social-controller.ts | Yeni sosyal API, adapter orkestrasyonu, batch taslak ve private bot kanıtı |
+| apps/api/src/social-adapters.ts | Ortak platform sözleşmesi; desteklenmeyen doğrulama fail-closed |
+| apps/api/src/social-targets.ts, social-http.ts | URL/API host allowlist, sahiplik, timeout, redirect reddi, rate/backoff |
+| apps/api/src/social-webhook-signatures.ts, kick-public-key.ts | Telegram secret, Twitch/Meta HMAC, dinamik Kick RSA anahtarı |
+| apps/api/src/social-maintenance.ts, social-token-maintenance.ts | Süre/bütçe kapatma; geçici kanıt temizliği; Twitch token kontrolü |
+| apps/web/app/admin/modules.tsx | Admin sekmelerinin temel yönetimi |
+| apps/web/app/admin/social-task-builder.tsx | Dinamik platform/görev, owned hedef, TR/EN önizleme ve en çok20 atomik taslak |
+| apps/web/app/admin/social-api.tsx, social-management.tsx | Anahtar/scopes/webhook ve resmî hesap ekranları |
+| apps/web/app/admin/reward-limits.tsx | Onaylı, sürüm kontrollü gelecek ödül/bütçe/kota/tarih düzenleme |
+| apps/web/app/dashboard/board.tsx, social.tsx, bot-task.tsx | Kullanıcı görevleri, ayrı sosyal hesaplar ve bot kanıt akışı |
+| apps/web/app/translations.json, timezones.ts, social-icons.tsx | TR/EN, IANA↔UTC/DST ve platform simgeleri |
+| prisma/schema.prisma |22 modelin gerçek alan/ilişki otoritesi |
 
-- `apps/web/app/layout.tsx`, `proxy.ts`, `server-config.ts`, `runtime.tsx`: SSR runtime config/branding, TR/EN locale/header, public config/wallet context.
-- `app/page.tsx`, `hero.tsx`: homepage ve DB GIF; admin `hero-visual.tsx` OWNER+step-up.
-- `wallet.tsx`: MetaMask/WalletConnect, SIWE challenge/signature/session, profil.
-- `dashboard/earning-guide.tsx`, `board.tsx`, `social.tsx`, `claims.tsx`, `official.tsx`: rehber/task/status/ledger/history/OAuth/native-claim/public links.
-- `admin/page.tsx` login/MFA/session; `admin/modules.tsx` tabs; `admin/lifecycle.tsx` impact/filter/date/content; `admin/social-management.tsx` resmi hedefler; `social-api.tsx`, `settings.tsx` configuration/secrets.
-- `i18n.tsx`, `translations.json`: T/useLanguage/translateText ve TR/EN sözlük. Task localizedContent ayrı admin authored data.
-- `apps/api/src/main.ts`: Nest AppModule/public endpoints/loopback+Helmet/no-store. Flat dosyalarda service/controller birlikte; ayrı controllers/services klasörü yok.
-- `auth.ts`, `security.ts`, `errors.ts`: SIWE/MFA/RBAC/session, AES-GCM/scrypt/cookie/origin, sanitized error.
-- `engine.ts`, `management.ts`, `policy.ts`: kampanya/görev/content/date/archive/delete/impact, verification/budget/ledger; default-deny social policy.
-- `official-accounts.ts`, `telegram-verifier.ts`: resmi metadata/Bot API bağlantısı, negatif Chat ID validation (yeni TEST), getMe/getChat/getChatMember.
-- `providers.ts`, `social.ts`, `oauth-lifecycle.ts`, `integration-settings.ts`, `social-config.ts`: OAuth scopes/PKCE/OIDC/state/binder/generation, encrypted token/config override/refresh/revoke.
-- `configuration.ts`, `config-controller.ts`, `data.ts`: single-chain config/SecretStore/RPC guard, OWNER routes, PrismaPg/Redis/health.
-- `worker.ts`: sadece BullMQ maintenance heartbeat15sn; Redis heartbeatTTL45. Otomatik payout/claim/Telegram verification queue yok.
-- `prisma/schema.prisma`19 model, `prisma/migrations`14 applied migration. Yeni validator migration gerektirmez.
-- `packages/contracts/src/NativeRewardVault.sol` + legacy `NativeTURKClaims.sol`, `test/NativeTURKClaims.t.sol`; backend ABI claims.ts inline, Foundry out generated.
+## Veritabanı ve ödül güvenliği
 
-## DB ve muhasebe kısa özeti
+19 eski modele ek olarak SocialRewardIdentity, SocialWebhookReceipt ve SocialChallenge vardır; migration `202611030001_multi_social_engine`15. sıradadır. `_prisma_migrations` ile23 fiziksel tablo.
 
-User/AuthSession/Admin; Campaign→Task→Submission→LedgerEntry→LedgerEvent; SocialAccount/Credential/OfficialSocialAccount/SocialLinkState; BlockchainNetwork/ConfigDocument/IntegrationSetting/SocialPlatform; ClaimAuthorization; HeroVisual; AuditEvent. Ayrı Balance/Notification/Verification tablosu yok. Tutar Decimal(78,0)/BigInt integerwei;10TURK=10000000000000000000. Submission(userId,taskId) ve ledger idempotency/submission unique tek ödülü korur. Ledger auto-delete veya kontrolsüz cascade ekleme.
+LedgerEntry + LedgerEvent muhasebe otoritesidir. Decimal(78,0) integerwei kullanılır; float ile bakiye hesaplanmaz. Campaign→Task kilit sırası, serializable retry, kullanıcı/görev submission unique, ledger idempotency ve task/provider/accountHash unique korumaları birlikte uygulanır. Sosyal hesap başka cüzdana taşınsa da kalıcı ödül kimliği silinmez. Eski bağlantısı kaldırılmış bilinmeyen kimlikler migration sırasında uydurulmaz.
 
-Manual proof PENDING→admin/reviewer approve AVAILABLE; Telegram membership başarılıysa doğrudan APPROVED+AVAILABLE. Budget allocation aynı serializable transaction içinde; Campaign→Task lock sırası ve adapter serialization retry. Dış getChatMember çağrısı sonrası lock altında archive/date/config/budget yeniden kontrol edilir. Arşivli görevler yeni listeden kalkar, geçmiş/bakiye korunur. Safe delete geçmiş yoksa; geçmiş/verification audit varsa archive. Campaign çocukları/ödülü varsa archive. Archive restore UI yok.
+Eski Task.budgetWei null ise ortak kampanya bütçesi geçerlidir. Yeni katalog görevleri sonlu bağımsız bütçe ister. Task.allocatedWei DB CHECK ile bütçeyi aşamaz; global kampanya guardı ayrıca korunur. Manuel pending kayıt bütçeyi ayırır; rejection rezervi çözer. Yeni ödül miktarı önceki kazanılmış/pending tutarı değiştirmez. Limit düzenlemesi görevi pasife alır.
 
-## Telegram ve sosyal durum
+Webhook ledger yazmaz. İmzalı olayı receipt/short proof yapar; kullanıcı Verify isteği güncel kimlik/resmî hesap versionı/tarih/bütçe/policy kontrolleriyle atomic kredi üretir. Bot kanıtı10dk geçerlidir; geçici proof/receipt kayıtları7gün sonra temizlenir. Ledger, audit ve kimlik rezervasyonları otomatik silinmez.
 
-Production GROUP `cmvxxbysj000isqifw90acmj0`, -1003676977941, @Turkchain1919, https://t.me/Turkchain1919, CONNECTED/version1. Bot @turkchainaibot administrator doğrulandı. Önceki yanlış pozitif ID1003676977941 ayrı kullanıcı onayıyla account-only transaction+2audit ile düzeltildi; görev/kampanya/ledger/OAuth değişmedi. Normal connect/disconnect task configurationRequired/enabled da yazabilir; scope sınırlı bakımda dikkat.
+## Mevcut Telegram görevi ve zincir
 
-Telegram kullanıcı login OIDC issuer/audience/JWKS/nonce/PKCE; user ID pozitif olabilir ve target ID negatif kuralı ona uygulanmaz. Resmî Bot API token encrypted Credential/ENV fallback; kullanıcı OAuth tokenı ile aynı şey değildir. Credential ciphertext/secret değerlerini dökme. X/Meta/YouTube/TikTok credentials eksik; Discord/GitHub disabled, adaptör kodları var ama canlı consent doğrulanmadı. Genel engagement reward verifier yok.
+TELEGRAM kampanya `cmvxx6wdg0007sqify4ei3lih`; görev `cmw0i0bdw000039ifhpvwcfl1`. Kullanıcı başına1TURK, ilk25 kullanıcı, toplam25TURK. Eski10TURK taslağı güncel değildir. Önceki canlı envanter3kampanya/4görev/1kullanıcı/0ledger idi; güncel veri read-only snapshot ile doğrulanır.
 
-## Blockchain güvenliği
+Resmî GROUP `cmvxxbysj000isqifw90acmj0`, ChatID **string `-1003676977941`**, @Turkchain1919, bot @turkchainaibot. CONNECTED bağlantı korunur. GROUP/CHANNEL pozitif numeric ID reddedilir, @username desteklenir. Salt okuma kontrolünde normal connect endpointini çağırmayın: görev metadata/config durumunu değiştirebilir. BotAPI getChat/getChatMember ve OIDC state/nonce/audience/PKCE korumaları vardır.
 
-Chain1919/0x77f, native TURK18, RPC https://rpc.turkscan.com, WSS wss://evm-ws.turkscan.com. Current vault/signer/bytecode hash boş; deployed/funded kontrat kanıtı yok. MASTER_PAYOUTS_AUTHORIZED=false, REWARD_CLAIMS_PAUSED=true, runtime/network pause, gas sponsor false. Bunları değiştirme. Claim source gelecekte EIP712/domain/nonce/deadline, RESERVED ve confirmed canonical receipt/event kontrolü uygular; mevcut worker para göndermez.
+Turkchain chainID1919, nativeTURK18decimals. Mainnet transferi yapılmaz. `REWARD_CLAIMS_PAUSED=true`; `MASTER_PAYOUTS_AUTHORIZED` tanımsızsa etkin değer false. Network/runtime claim ayrıca kapalıdır; deploy edilmiş claim kontratı olduğu varsayılmaz. Solidity/Foundry testleri mainnet deployment kanıtı değildir.
 
-## Son çalışma ve kanıt
+## Platformların gerçek durumu
 
-Yeni TEST validator: GROUP/CHANNEL dolu target negatif1..24digit string veya @username; pozitif numeric/accountId/raw defaultTarget reddi; boş metadata draft geriye uyumlu. Text hint -1003676977941 ve localize TR/EN alan hatası eklendi; kişisel/provider IDs/OAuth scope aynı. Negative→positive dönüşümü güncel form/API'de üretilmedi; eksiklik pozitif GROUP ID kabulüydü.
+X/YouTube teşvikli etkileşimleri politika nedeniyle kapalıdır. Meta doğrudan Developer belgelerine429 erişim sınırlaması oldu; koşullu izin/metadata adayları doğrulanmış canlı destek değildir. TikTok DisplayAPI per-user follow/like/watch kanıtı vermez; ResearchAPI genel ticari görev doğrulaması değildir.
 
-35/35 app tests,10/10Foundry, typecheck/lint/build, hero/lifecycle/guide ve yeni validation TR/EN desktop/mobile, audit0/schema diff none/TEST health PASS. İlk yeni browser selector Next announcer ile çatıştı; daraltılmış selector sonrası PASS, eski failed log tutulur. Gerçek MetaMask/live sosyal consent veya production ödül testi yapılmadı. Tam kanıt paths WORK_COMPLETION_REPORT içinde.
+Kick/Twitch OAuth/refresh/revoke protokol kodu ve signature alıcıları hazırdır. Gerçek ownercredentials/consent/appapproval/webhook aboneliği olmadan NOT_CONFIGURED kalırlar; mock testi canlı başarı saymayın. Twitch tokenlar exchange/refresh ve55dkTTL worker ile doğrulanır. Kısıtlı follow/chat/sub/redemption görevleri izin varmış gibi açılmaz.
 
-## İlk görev hazırlığı ve sonraki adım
+Telegram mevcut sınırlı authentic onboarding üyeliği ve özel first-party bot kodları dışında ödüllü eylemler kapalıdır. Bot Developer Terms spam/sosyal metrik manipülasyonunu yasaklar. Ürün harici web sitesidir, Telegram Mini App değildir; TON kuralını aşan Mini App akışı eklenmez. Bot görevleri için OWNER ayrıca webhook opt-in/register ve hedef doğrulaması yapmalıdır. GROUP üyeliği webhook gerektirmez.
 
-Mevcut3kampanya/3task READ ONLY incelendi. En uygun boş DRAFT `TELEGRAM` campaign cmvxx6wdg0007sqify4ei3lih; budget10/allocated0 TURK, yalnız1adet10TURK ödülü karşılar. Diğer iki PAUSED kampanya eskiX/manual Telegram EDUCATION görevleri içerir; birinin bütçesi5TURK. Yeni kampanya gerekmeden mevcut boşcampaign kullanılabilir **ama bu çalışmada hiçbiri değiştirilmedi ve yeni task yaratılmadı**.
+Tekrarlanabilir ödül bu sürümde uygulanmamıştır; repeatable:true reddedilir. Manuel inceleme platform yasağını aşmaz. Yeni sağlayıcılarda canlı credentials/appreview testleri bekler. Yönetici bilgileri daha sonra güvenli panelden girebilir.
 
-CURRENT_STATUS JSON taslağı review-only: SOCIAL_INTERACTION/TELEGRAM_MEMBERSHIP, connected officialID,10TURK,TR/EN başlık/açıklama/5adım/tek ödül/internal AVAILABLE. Production deployment + task creation/publication + campaign activation + kaç kullanıcı/bütçe/tarih için ayrı explicit owner onayı beklenir. Önce exact TEST candidate/gates/docs incele, sonra onaylı productionbackup/rollback/deploy; daha sonra onaylı task publish ve campaignACTIVE. Varsayılan olarak otomatik hiçbir aşamaya geçme. Gerçek TURK transferi/claim kontratı açma kesinlikle bu kapsamda değil.
+## Kontroller, yayın ve devam
 
-Ek doğrulanan fark: TEST networkKey=turkchain, production networkKey=network-1919; ikisi de chain1919/TURK18 mainnet. TEST ortamını testnet sanarak cüzdan işlemi gönderme. Certbot timer active/enabled; public sertifika2027-01-29'a kadar geçerli gözlendi, renewal zorlanmadı.
+`infrastructure/scripts/validate-release.sh` temiz committe build/type/lint, uygulama testleri,8TR/ENdesktop/mobile tarayıcı paketi,10Foundry testi, audit, Prisma migrate/diff ve secret gate çalıştırır. SHA kanıtı `.runtime/validated.json`. Yeni Twitch worker testi sonrası toplam uygulama testi53 olmalıdır; kesin sonuç logdan okunur.
 
-## Hedef alanı geriye uyumluluk notu
+Production yedeği, gerçek restore ve izole migration provasından sonra `deploy-production.sh` çalıştırılır. `sync-github.sh` yalnız sağlıklı SHA'yı main/tag'e gönderir. Geri dönüşte eski engine yeni SOCIAL_API/bağımsızbütçe görevlerini anlayamayacağından bu görevler önce güvenli pasifleştirilir; DB downgrade/ledger delete yapılmaz.
 
-`accountId` negatif sayı stringi veya @username ister. URL alanı `defaultTargetUrl` ayrıca eski bare username (`Turkchain1919`) girdisini t.me URL'ye normalize etmeye devam eder; salt pozitif sayısal grup/kanal hedefi burada da reddedilir. Bu ayrım eski URL-normalizasyon API davranışını korur; kullanıcı Telegram kimliği OAuth akışını değiştirmez. Negative/@username/bare-URL-field regresyonları TEST kapsamındadır.
+Son kullanıcı onayı TEST sonrası güvenli production **altyapı** yayını içindir. Yeni ödüllü görev/kampanya otomatik yayınlamak, gerçek ödül dağıtmak veya transfer açmak kapsam dışıdır. Bir sonraki oturum dış handoff ve `PRODUCTION_RELEASE_REPORT.md` kanıtlarından son SHA/test/eksikleri doğrulayıp tamamlanan işleri tekrarlamadan devam eder.

@@ -8,6 +8,8 @@ model User {
  id String @id @default(cuid())
  wallet String @unique
  displayName String?
+ socialRewardIdentities SocialRewardIdentity[]
+ socialChallenges SocialChallenge[]
  sessions AuthSession[]
  createdAt DateTime @default(now())
  socialAccounts SocialAccount[]
@@ -53,6 +55,13 @@ model Task {
  publishedAt DateTime?
  archivedAt DateTime?
  submissions Submission[]
+ socialTaskCode String?
+ targetObjectId String?
+ timezone String @default("UTC")
+ budgetWei Decimal? @db.Decimal(78,0)
+ allocatedWei Decimal @default(0) @db.Decimal(78,0)
+ socialIdentities SocialRewardIdentity[]
+ socialChallenges SocialChallenge[]
  rewardWei Decimal @default(0) @db.Decimal(78,0)
  @@index([campaignId, archivedAt])
 }
@@ -172,6 +181,9 @@ model SocialAccount {
 model IntegrationSetting {
  platform String @id
  authMode String @default("oauth")
+ requestedScopes String[] @default([])
+ webhookEnabled Boolean @default(false)
+ webhookVerifiedAt DateTime?
  credentialsUpdatedAt DateTime?
  enabledOverride Boolean?
  callbackUrl String?
@@ -306,4 +318,51 @@ model HeroVisual {
  published Boolean @default(false)
  enabled Boolean @default(false)
  updatedAt DateTime @updatedAt
+}
+
+model SocialRewardIdentity {
+ id String @id @default(cuid())
+ taskId String
+ task Task @relation(fields:[taskId],references:[id],onDelete:Restrict)
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+ provider String
+ accountHash String
+ createdAt DateTime @default(now())
+ @@unique([taskId,provider,accountHash])
+ @@index([userId])
+}
+model SocialWebhookReceipt {
+ id String @id @default(cuid())
+ platform String
+ eventId String
+ eventType String
+ bodyHash String
+ actorHash String?
+ targetObjectId String?
+ receivedAt DateTime @default(now())
+ occurredAt DateTime
+ expiresAt DateTime
+ challenges SocialChallenge[]
+ @@unique([platform,eventId])
+ @@index([expiresAt])
+}
+model SocialChallenge {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Restrict)
+ taskId String
+ task Task @relation(fields:[taskId],references:[id],onDelete:Restrict)
+ officialAccountId String
+ officialVersion Int
+ providerAccountHash String
+ tokenHash String @unique
+ expiresAt DateTime
+ verifiedAt DateTime?
+ consumedAt DateTime?
+ receiptId String?
+ receipt SocialWebhookReceipt? @relation(fields:[receiptId],references:[id],onDelete:Restrict)
+ createdAt DateTime @default(now())
+ @@index([expiresAt])
+ @@index([userId,taskId])
 }

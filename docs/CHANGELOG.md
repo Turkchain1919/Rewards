@@ -1,5 +1,30 @@
 # Sürüm ve dosya değişiklik geçmişi
 
+## v0.5.0 güncel kapsam — 3 Kasım 2026
+
+Kaynak dalı `feature/multi-social-rewards-engine`; önceki canlı sürüm `3c85ac1a29b51d86d74d1fe7cc847ee391f7a4c0` (v0.4.5). Aşağıdaki eski envanterler tarihsel kanıttır; güncel modüller ve sınırlar bu bölüm ile sosyal dokümanlarda açıklanır. Çalışan tam SHA, `.runtime/deployment.json` ve `.runtime/validated.json` üzerinden doğrulanır; bu dosyanın bulunduğu commit kendi hashini içermez. Yayın sonucu [PRODUCTION_RELEASE_REPORT.md](PRODUCTION_RELEASE_REPORT.md).
+
+8 platform ve 65 görev tanımı vardır. Katalogda bulunması gerçek API bağlantısı veya ödüllü yayın izni değildir. X/YouTube teşvikli etkileşimleri politika nedeniyle kapalı; Meta/TikTok normal ticari API yetenekleri sınırlı; Kick/Twitch ödüllü etkileşimleri izin incelemesi olmadan kapalıdır. Sadece mevcut Telegram üyelik doğrulaması ve açıkça yapılandırılacak özel bot kanıtları uygulanmıştır. Hiçbir yeni canlı görev/kampanya otomatik oluşturulmaz. Tekrarlanabilir görevler reddedilir. Claim ve gerçek transferler kapalıdır.
+
+Mevcut Telegram görevi kullanıcı başına **1 TURK**, **25 kullanıcı**, ortak kampanya **25 TURK** bütçesidir; 10 TURK eski taslaktır. Üç kampanya/dört görev korunur. `REWARD_CLAIMS_PAUSED=true`; master ödeme yetkisi tanımsızken etkin değer false olur. Telegram GROUP `-1003676977941` string olarak korunur. Gizli değerler dokümantasyona yazılmaz.
+
+## 0.5.0 — Multi-Social altyapısı, 2026-11-03
+
+- Sekiz platform/65 gerçek yetenek+politika tanımı; kısıtlı ödüllü etkileşim kapısı.
+- Kick/Twitch OAuth identity/refresh/revoke, minimum kullanıcı scopes, periyodik Twitch doğrulama.
+- Şifreli yönetici API/scopes/webhook ayarları, çoklu resmî hedefler, dinamik taslak oluşturucu ve batch idempotency.
+- Exactwei bağımsıztaskbudget, atomicglobalbudget, kalıcısocialidentityunique, UTC/IANA veexpiryworker.
+- TG privatebotchallenge ve açıksetWebhook akışı; Twitch/MetaHMAC,KickRSA,replay/timeout/SSRF korumaları.
+- Eklemeli15. migration; mevcutledger/bakiyeler değiştirilmez. EskiTG1/25/25görevikorunur.
+- TR/ENdesktop/mobile ve API/DB/protokol testleri;16teknikdoküman güncellemesi.
+
+Önceki doğrulanmış v0.4.5 commitleri: `589ce613` (Telegram1/25/25 veInstagramhazırlık), `3f493df` araaday, `3c85ac1` finaladminlimitvalidation. Son ikiaraadayın40/41testfarkı ve gerçekyayın ayrıntısı ADMIN_REWARD_LIMITS.md/dışhandoff'tadır. Kaynağı bulunmayan eski değişiklikler uydurulmaz. Bu sürümde tamdosyafarkı `git diff --name-status 3c85ac1 HEAD`; önceki işlev→yeni işlev ve testler SOCIAL_VERIFICATION_ENGINE/DIRECTORY_STRUCTURE tablolarında.
+
+---
+
+## Önceki sürüm envanteri (tarihsel)
+
+
 ## Yönetici ödül ve sınır yönetimi
 
 - Onaylı GET/PATCH limits API, mevcut yönetici MFA/rol denetimi, stale edit koruması, önce/sonra audit.

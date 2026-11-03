@@ -1,5 +1,24 @@
 # Mevcut durum, ilk Telegram görevi hazırlığı ve bekleyen onaylar
 
+## v0.5.0 güncel kapsam — 3 Kasım 2026
+
+Kaynak dalı `feature/multi-social-rewards-engine`; önceki canlı sürüm `3c85ac1a29b51d86d74d1fe7cc847ee391f7a4c0` (v0.4.5). Aşağıdaki eski envanterler tarihsel kanıttır; güncel modüller ve sınırlar bu bölüm ile sosyal dokümanlarda açıklanır. Çalışan tam SHA, `.runtime/deployment.json` ve `.runtime/validated.json` üzerinden doğrulanır; bu dosyanın bulunduğu commit kendi hashini içermez. Yayın sonucu [PRODUCTION_RELEASE_REPORT.md](PRODUCTION_RELEASE_REPORT.md).
+
+8 platform ve 65 görev tanımı vardır. Katalogda bulunması gerçek API bağlantısı veya ödüllü yayın izni değildir. X/YouTube teşvikli etkileşimleri politika nedeniyle kapalı; Meta/TikTok normal ticari API yetenekleri sınırlı; Kick/Twitch ödüllü etkileşimleri izin incelemesi olmadan kapalıdır. Sadece mevcut Telegram üyelik doğrulaması ve açıkça yapılandırılacak özel bot kanıtları uygulanmıştır. Hiçbir yeni canlı görev/kampanya otomatik oluşturulmaz. Tekrarlanabilir görevler reddedilir. Claim ve gerçek transferler kapalıdır.
+
+Mevcut Telegram görevi kullanıcı başına **1 TURK**, **25 kullanıcı**, ortak kampanya **25 TURK** bütçesidir; 10 TURK eski taslaktır. Üç kampanya/dört görev korunur. `REWARD_CLAIMS_PAUSED=true`; master ödeme yetkisi tanımsızken etkin değer false olur. Telegram GROUP `-1003676977941` string olarak korunur. Gizli değerler dokümantasyona yazılmaz.
+
+Tamamlanan altyapı:65görev/8platformkataloğu, Kick/Twitch OAuth protokolleri, güvenli credential/scopes paneli, çokluhedef, sahiplikURLresolver, batchdrafts, bağımsıztaskbudget/UTC/IANA/expiry, kimliktekrarödülengeli, imza/replay/proofworker, TR/ENUI. APIcredentials yokken CONNECTED uydurulmaz.
+
+Canlı provider kanıtı: mevcut Telegram GROUP ve Bot API üyelik entegrasyonu önceki yayından korunur. Kick/Twitch ve diğer yeni dış OAuth izinleri gerçek ownercredentials/appapproval olmadan uçtanuca kanıtlanmış değildir. Mock protokol/Playwright testleri gerçek platform onayı değildir. Meta doğrudan Developer sayfaları429 döndürdü; doğrulanmış entegrasyon sayılmaz. Tekrarlanabilirödül bilerek devredışı; unsupported/providerpolicy görevleri kapalı. Yeni platformwebhook abonelikleri (Twitch/Kick/Meta) provider tarafında operatör ayarı ister; alıcı hazır olmak abonelik kurulmuş demek değildir.
+
+Sıradaki işletim: OWNER SocialAPI'den anahtarları güvenli girer, hedefhesabı gerçekOAuth ile bağlar, gerekli izinleri ve platform politikasını kontrol eder. Ancak gerçekkanıt ve açık izin sonrası desteklenen görev yayınlanır. Bu iş otomatik yeni kampanya/görev/ödül dağıtımı yapmaz. Nihai test/yayın sonucu PRODUCTION_RELEASE_REPORT ve dış handoff kanıtında yer alır.
+
+---
+
+## Önceki sürüm envanteri (tarihsel)
+
+
 > Güncel yönetici geliştirmesi: [ADMIN_REWARD_LIMITS.md](ADMIN_REWARD_LIMITS.md). Yayınlanmış görevlerde ödül/kontenjan/tarih ve ortak bütçe onayla değiştirilebilir; kayıtlar korunur, görev pasife alınır. Bu özellik mevcut canlı Telegram1/25/25 ayarlarını kendiliğinden değiştirmez.
 
 > **2026-11-03 güncel çalışma:** Önceki 10 TURK taslağı yerine kullanıcı 1 TURK × ilk25 kullanıcı / toplam25TURK ve TEST sonrası productionyayınını onayladı. Güncel plan ve doğrulama koşulları [REWARD25_RELEASE_READINESS](REWARD25_RELEASE_READINESS.md), tam payload [TELEGRAM_REWARD25_TASK.json](TELEGRAM_REWARD25_TASK.json), Instagram açıklaması [INSTAGRAM_READINESS](INSTAGRAM_READINESS.md). Aşağıdaki bilgiler önceki snapshot olabilir; çalışanSHA ve gerçekyayınsonucu dış PROJECT_HANDOFF.md/deploymentmanifest esas alınarak doğrulanır.

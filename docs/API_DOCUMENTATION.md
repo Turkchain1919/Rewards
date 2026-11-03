@@ -1,5 +1,37 @@
 # API referansı — doğrulanmış endpoint envanteri
 
+## v0.5.0 güncel kapsam — 3 Kasım 2026
+
+Kaynak dalı `feature/multi-social-rewards-engine`; önceki canlı sürüm `3c85ac1a29b51d86d74d1fe7cc847ee391f7a4c0` (v0.4.5). Aşağıdaki eski envanterler tarihsel kanıttır; güncel modüller ve sınırlar bu bölüm ile sosyal dokümanlarda açıklanır. Çalışan tam SHA, `.runtime/deployment.json` ve `.runtime/validated.json` üzerinden doğrulanır; bu dosyanın bulunduğu commit kendi hashini içermez. Yayın sonucu [PRODUCTION_RELEASE_REPORT.md](PRODUCTION_RELEASE_REPORT.md).
+
+8 platform ve 65 görev tanımı vardır. Katalogda bulunması gerçek API bağlantısı veya ödüllü yayın izni değildir. X/YouTube teşvikli etkileşimleri politika nedeniyle kapalı; Meta/TikTok normal ticari API yetenekleri sınırlı; Kick/Twitch ödüllü etkileşimleri izin incelemesi olmadan kapalıdır. Sadece mevcut Telegram üyelik doğrulaması ve açıkça yapılandırılacak özel bot kanıtları uygulanmıştır. Hiçbir yeni canlı görev/kampanya otomatik oluşturulmaz. Tekrarlanabilir görevler reddedilir. Claim ve gerçek transferler kapalıdır.
+
+Mevcut Telegram görevi kullanıcı başına **1 TURK**, **25 kullanıcı**, ortak kampanya **25 TURK** bütçesidir; 10 TURK eski taslaktır. Üç kampanya/dört görev korunur. `REWARD_CLAIMS_PAUSED=true`; master ödeme yetkisi tanımsızken etkin değer false olur. Telegram GROUP `-1003676977941` string olarak korunur. Gizli değerler dokümantasyona yazılmaz.
+
+Yeni API grubu (`apps/api/src/social-controller.ts`):
+
+| Yöntem / yol | Yetki / istek / sonuç |
+|---|---|
+| GET /api/social/task-catalog?platform=TELEGRAM | Public; 65 katalog tanımı, teknik/politika/config durumları; secret yok |
+| GET /api/admin/social/task-catalog | OWNER/ADMIN; aynı güvenli katalog |
+| POST /api/admin/social/targets/resolve | OWNER/ADMIN+Origin; {url,officialAccountId}; nesne/sahiplik ve status; sabit API hostları |
+| POST /api/admin/social/tasks/batch | OWNER/ADMIN+Origin; {campaignId,idempotencyKey,items:[taskInput]}; atomik en çok20 DRAFT; aynı key/farklı body409 |
+| GET /api/me/social-tasks?network=... | User session; durum/kalan kontenjan/bütçe |
+| POST /api/social/tasks/:id/challenge?network=... | User+Origin+rate limit; bot için süreli private challenge; ödül yok |
+| POST /api/tasks/:id/verify?network=... | User+Origin+rate limit; politika/gerçek kanıt→transaction→tek kredi |
+| POST /api/admin/social/webhooks/telegram/install | OWNER+stepUp+Origin; confirm=REGISTER_TELEGRAM_WEBHOOK, replaceExisting=false, mfaCode?; açık operatör işlemi |
+| GET /api/social/webhooks/:platform | Meta hub.verify_token challenge; sır karşılaştırması |
+| POST /api/social/webhooks/:platform | Provider imzası/raw body ≤64KiB; replay idempotent; ödül yazmaz |
+
+Mevcut POST/PUT `/api/admin/tasks` şeması socialTaskCode,targetObjectId,timezone,budgetWei,repeatable:false alanlarını destekler. `verification` üyelik için TELEGRAM_MEMBERSHIP; bot için SOCIAL_API+code; yeni katalog görevinde finite budget zorunlu. Örnek taslak: rewardWei="1000000000000000000",budgetWei="25000000000000000000",maxRewards=25,enabled=false. Toplu API hiçbir görevi yayınlamaz. Yayın ayrı mevcut `/api/admin/tasks/:id/publish` işlemidir; imkânsız/kısıtlı görev403.
+
+Ayarlarda requestedScopes ve webhookEnabled eklenmiştir. Body validation400, auth401, policy/role/MFA403, stale/bütçe/idempotency409, webhook limit413, provider429/reauth durumları fail-closed döner. GlobalJSON limit512KiB; webhook64KiB. Mevcut endpointler geriye uyumludur.
+
+---
+
+## Önceki sürüm envanteri (tarihsel)
+
+
 > Güncel yönetici geliştirmesi: [ADMIN_REWARD_LIMITS.md](ADMIN_REWARD_LIMITS.md). Yayınlanmış görevlerde ödül/kontenjan/tarih ve ortak bütçe onayla değiştirilebilir; kayıtlar korunur, görev pasife alınır. Bu özellik mevcut canlı Telegram1/25/25 ayarlarını kendiliğinden değiştirmez.
 
 > **2026-11-03 güncel çalışma:** Önceki 10 TURK taslağı yerine kullanıcı 1 TURK × ilk25 kullanıcı / toplam25TURK ve TEST sonrası productionyayınını onayladı. Güncel plan ve doğrulama koşulları [REWARD25_RELEASE_READINESS](REWARD25_RELEASE_READINESS.md), tam payload [TELEGRAM_REWARD25_TASK.json](TELEGRAM_REWARD25_TASK.json), Instagram açıklaması [INSTAGRAM_READINESS](INSTAGRAM_READINESS.md). Aşağıdaki bilgiler önceki snapshot olabilir; çalışanSHA ve gerçekyayınsonucu dış PROJECT_HANDOFF.md/deploymentmanifest esas alınarak doğrulanır.

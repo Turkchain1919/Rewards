@@ -80,6 +80,7 @@ test('Telegram membership missions publish, appear to users and credit Available
   tokenAvailable=false;
   assert.deepEqual(await engine.publicTasks(network.networkKey),[]);
  }finally{
+  await db.socialRewardIdentity.deleteMany({where:{taskId:taskId||'__none__'}});
   const submissions=await db.submission.findMany({where:{taskId:taskId||'__none__'},select:{id:true}});
   const ids=submissions.map(v=>v.id);
   if(ids.length){const entries=await db.ledgerEntry.findMany({where:{submissionId:{in:ids}},select:{id:true}});await db.ledgerEvent.deleteMany({where:{ledgerId:{in:entries.map(v=>v.id)}}});await db.ledgerEntry.deleteMany({where:{id:{in:entries.map(v=>v.id)}}});await db.submission.deleteMany({where:{id:{in:ids}}});}

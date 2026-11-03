@@ -1,5 +1,31 @@
 # TEST ve PRODUCTION deployment / operasyon rehberi
 
+## v0.5.0 güncel kapsam — 3 Kasım 2026
+
+Kaynak dalı `feature/multi-social-rewards-engine`; önceki canlı sürüm `3c85ac1a29b51d86d74d1fe7cc847ee391f7a4c0` (v0.4.5). Aşağıdaki eski envanterler tarihsel kanıttır; güncel modüller ve sınırlar bu bölüm ile sosyal dokümanlarda açıklanır. Çalışan tam SHA, `.runtime/deployment.json` ve `.runtime/validated.json` üzerinden doğrulanır; bu dosyanın bulunduğu commit kendi hashini içermez. Yayın sonucu [PRODUCTION_RELEASE_REPORT.md](PRODUCTION_RELEASE_REPORT.md).
+
+8 platform ve 65 görev tanımı vardır. Katalogda bulunması gerçek API bağlantısı veya ödüllü yayın izni değildir. X/YouTube teşvikli etkileşimleri politika nedeniyle kapalı; Meta/TikTok normal ticari API yetenekleri sınırlı; Kick/Twitch ödüllü etkileşimleri izin incelemesi olmadan kapalıdır. Sadece mevcut Telegram üyelik doğrulaması ve açıkça yapılandırılacak özel bot kanıtları uygulanmıştır. Hiçbir yeni canlı görev/kampanya otomatik oluşturulmaz. Tekrarlanabilir görevler reddedilir. Claim ve gerçek transferler kapalıdır.
+
+Mevcut Telegram görevi kullanıcı başına **1 TURK**, **25 kullanıcı**, ortak kampanya **25 TURK** bütçesidir; 10 TURK eski taslaktır. Üç kampanya/dört görev korunur. `REWARD_CLAIMS_PAUSED=true`; master ödeme yetkisi tanımsızken etkin değer false olur. Telegram GROUP `-1003676977941` string olarak korunur. Gizli değerler dokümantasyona yazılmaz.
+
+Güncel yayın için kullanıcı TEST→kontrollü production altyapı dağıtımını onaylamıştır; aşağıdaki tarihsel “ayrıca onay” cümleleri önceki çalışma kapsamıdır. Yeni production görevi/ödülü/transferi bu onaya dahil değildir.
+
+1. Ortak `/root/frontend/.codex/session.lock` flock, temiz feature commit ve güncel handoff doğrulanır.
+2. `bash infrastructure/scripts/validate-release.sh`: build/typecheck/lint/API+DB+browser+Foundry/audit/migrationdiff/secret gate; başarılı SHA `.runtime/validated.json`.
+3. `REWARDS_TARGET=/var/www/rewards.turkscan.com/rewards bash infrastructure/scripts/backup-database.sh` gerçek mevcut komut; custom dump/SHA saklanır, geçici DB'ye restore ve15. migration prova edilir. Kaynak script isimleri `infrastructure/scripts` altında kontrol edilir; sırları shell çıktısına basmayın.
+4. `bash infrastructure/scripts/deploy-production.sh` doğrulanmış TESTcommitinden immutable artifact, eklemeli migrate, current symlink/servis/health; önceki artifact korunur.
+5. `bash infrastructure/scripts/check-health.sh` varsayılanTEST; production için REWARDS_TARGET=/var/www/rewards.turkscan.com/rewards doğru common.sh hedefiyle çalıştırılır. PublicHTTPS+Redis+PG+worker ve eski sütun hashleri ayrıca kontrol edilir.
+6. `bash infrastructure/scripts/sync-github.sh`: sağlıklı deploymentmanifesti doğrulanır, main/tag gönderilir. Rapor runtimekanıtlarından tamamlanır.
+
+Rollback: önce yeni SOCIAL_API/katalog/bağımsızbütçeli görevlerin eski engine altında ödül vermesini engelleyin; sonra önceki immutable artifacte dönüp servisleri restart/health kontrol edin. Eklemeli migration geri alınmaz, ledger silinmez, eski DBdump çalışan DB üzerine körlemesine restore edilmez. Yeni task türlerini eski engine tanımaz. Bu yayında otomatik yeni production görev oluşturulmadığından eski Telegram görevi aynen korunur. Production `.env` gerçek içerikleri rapora eklenmez.
+
+Worker aynı systemd unitinde iki BullMQ queue kullanır: maintenance15s, social-credentials5min; Twitch credential başına55min RedisTTL, geçici providerhatasında5min retry. Auth heartbeat ayrı worker olduğundan token kontrolü canlılık sinyalini bloke etmez. Twitch401 gerçek kimlikle eşleşen credential versionını yeniden kontrol ederek reauth ve görevpasifleştirme yapar.
+
+---
+
+## Önceki sürüm envanteri (tarihsel)
+
+
 > **2026-11-03 güncel çalışma:** Önceki 10 TURK taslağı yerine kullanıcı 1 TURK × ilk25 kullanıcı / toplam25TURK ve TEST sonrası productionyayınını onayladı. Güncel plan ve doğrulama koşulları [REWARD25_RELEASE_READINESS](REWARD25_RELEASE_READINESS.md), tam payload [TELEGRAM_REWARD25_TASK.json](TELEGRAM_REWARD25_TASK.json), Instagram açıklaması [INSTAGRAM_READINESS](INSTAGRAM_READINESS.md). Aşağıdaki bilgiler önceki snapshot olabilir; çalışanSHA ve gerçekyayınsonucu dış PROJECT_HANDOFF.md/deploymentmanifest esas alınarak doğrulanır.
 
 Doğrulama anı: 2026-11-02T22:34:00.042Z. Production sürümü: **0.4.5 / `cc61b966bf684ad2f602b36100c3bf1de7f4d0a7`**. Bu doküman TEST dalında hazırlanmıştır; bu çalışmada production kodu/verisi/configuration değiştirilmez. Yollar sunucu `138.226.246.138` üzerindedir. Gerçek ENV/credential değerleri açıklanmaz.

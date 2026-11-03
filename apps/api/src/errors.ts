@@ -4,6 +4,7 @@ import type {Response,Request} from 'express';
 export class SafeErrors implements ExceptionFilter {
  catch(error:unknown,host:ArgumentsHost){
   const context=host.switchToHttp(),res=context.getResponse<Response>(),req=context.getRequest<Request>();
+  const parserType=(error as {type?:string})?.type;if(parserType==='entity.too.large'){res.status(413).json({statusCode:413,message:'Request body too large'});return;}if(parserType==='entity.parse.failed'){res.status(400).json({statusCode:400,message:'Invalid JSON body'});return;}
   if(error instanceof HttpException){
    const response=error.getResponse();
    if(response&&typeof response==='object'&&(response as {code?:unknown}).code==='VALIDATION_ERROR'){

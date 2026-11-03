@@ -18,7 +18,7 @@ async function request(fetcher:typeof fetch,url:string,init:RequestInit={}){
  return text?JSON.parse(text):{};
 }
 export async function refreshOAuth(platform:Platform,tokens:Tokens,priorScopes:string[],expected:string,accountType:string,override:ProviderOverride,fetcher:typeof fetch=fetch){
- if(!['X','YOUTUBE','TIKTOK','DISCORD','GITHUB'].includes(platform)||!tokens.refreshToken)throw new OAuthFailure('REAUTH_REQUIRED');
+ if(!['X','YOUTUBE','TIKTOK','DISCORD','GITHUB','KICK','TWITCH'].includes(platform)||!tokens.refreshToken)throw new OAuthFailure('REAUTH_REQUIRED');
  const c=configuration(platform,override);if(!c.ready)throw new OAuthFailure('PROVIDER_DISABLED');
  const form=new URLSearchParams({grant_type:'refresh_token',refresh_token:tokens.refreshToken});
  form.set(platform==='TIKTOK'?'client_key':'client_id',c.clientId);
@@ -26,13 +26,15 @@ export async function refreshOAuth(platform:Platform,tokens:Tokens,priorScopes:s
  if(platform==='X')headers.Authorization='Basic '+Buffer.from(c.clientId+':'+c.clientSecret).toString('base64');else form.set('client_secret',c.clientSecret);
  const result=await request(fetcher,c.definition.token,{method:'POST',headers,body:form}) as Record<string,unknown>;
  if(typeof result.access_token!=='string'||!result.access_token)throw new OAuthFailure('INVALID_RESPONSE');
- const accessToken=result.access_token,scopes=typeof result.scope==='string'?result.scope.split(/[ ,]+/).filter(Boolean):priorScopes;
+ const accessToken=result.access_token,scopes=typeof result.scope==='string'?result.scope.split(/[ ,]+/).filter(Boolean):Array.isArray(result.scope)&&result.scope.every(s=>typeof s==='string')?result.scope as string[]:priorScopes;
  if(!c.definition.scopes.every(scope=>scopes.includes(scope)))throw new OAuthFailure('PERMISSION_REQUIRED');
  const read=(url:string)=>request(fetcher,url,{headers:{Authorization:'Bearer '+accessToken,Accept:'application/json','User-Agent':'Social-Rewards'}});
  let matches=false;
  if(platform==='X'){const p=await read('https://api.x.com/2/users/me');matches=String(p.data?.id)===expected;}
  else if(platform==='YOUTUBE'){const p=await read('https://www.googleapis.com/youtube/v3/channels?part=id&mine=true&maxResults=50');matches=Array.isArray(p.items)&&p.items.some((v:Record<string,unknown>)=>v.id===expected);}
  else if(platform==='TIKTOK'){const p=await read('https://open.tiktokapis.com/v2/user/info/?fields=open_id');matches=p.data?.user?.open_id===expected;}
+ else if(platform==='KICK'){const p=await read('https://api.kick.com/public/v1/users');matches=Array.isArray(p.data)&&p.data.some((v:Record<string,unknown>)=>String(v.user_id||v.id)===expected);}
+ else if(platform==='TWITCH'){const validation=await request(fetcher,'https://id.twitch.tv/oauth2/validate',{headers:{Authorization:'OAuth '+accessToken}});if(validation.client_id!==c.clientId||validation.user_id!==expected)throw new OAuthFailure('ACCOUNT_MISMATCH');const p=await request(fetcher,'https://api.twitch.tv/helix/users',{headers:{Authorization:'Bearer '+accessToken,'Client-Id':c.clientId}});matches=Array.isArray(p.data)&&p.data.some((v:Record<string,unknown>)=>v.id===expected);}
  else if(platform==='DISCORD'&&accountType==='GUILD'){const p=await read('https://discord.com/api/v10/users/@me/guilds');matches=Array.isArray(p)&&p.some((v:Record<string,unknown>)=>v.id===expected&&(v.owner||!!(BigInt(String(v.permissions||'0'))&40n)));}
  else if(platform==='DISCORD'){const p=await read('https://discord.com/api/v10/users/@me');matches=p.id===expected;}
  else if(accountType==='ORGANIZATION'){const p=await read('https://api.github.com/user/memberships/orgs/'+encodeURIComponent(expected));matches=p.state==='active'&&p.role==='admin';}
@@ -50,6 +52,8 @@ export async function revokeOAuth(platform:Platform,tokens:Tokens,override:Provi
  else if(platform==='YOUTUBE'){endpoint='https://oauth2.googleapis.com/revoke';body=new URLSearchParams({token:tokens.refreshToken||tokens.accessToken});}
  else if(platform==='DISCORD'){endpoint='https://discord.com/api/oauth2/token/revoke';body=new URLSearchParams({token:tokens.accessToken,client_id:c.clientId,client_secret:c.clientSecret,token_type_hint:'access_token'});}
  else if(platform==='TIKTOK'){endpoint='https://open.tiktokapis.com/v2/oauth/revoke/';body=new URLSearchParams({client_key:c.clientId,client_secret:c.clientSecret,token:tokens.accessToken});}
+ else if(platform==='TWITCH'){endpoint='https://id.twitch.tv/oauth2/revoke';body=new URLSearchParams({client_id:c.clientId,token:tokens.accessToken});}
+ else if(platform==='KICK'){const url=new URL('https://id.kick.com/oauth/revoke');url.searchParams.set('token',tokens.accessToken);url.searchParams.set('token_hint_type','access_token');endpoint=url.toString();body=new URLSearchParams();}
  else if(platform==='GITHUB'){endpoint='https://api.github.com/applications/'+encodeURIComponent(c.clientId)+'/token';method='DELETE';headers.Authorization='Basic '+Buffer.from(c.clientId+':'+c.clientSecret).toString('base64');headers['Content-Type']='application/json';body=JSON.stringify({access_token:tokens.accessToken});}
  else return {revoked:false,reason:'PROVIDER_MANUAL_REVOCATION_REQUIRED'};
  try{const result=await request(fetcher,endpoint,{method,headers,body});if(platform==='X'&&result.revoked!==true)return {revoked:false,reason:'PROVIDER_REVOCATION_PENDING'};if(result.error&&result.error.code!=='ok')return {revoked:false,reason:'PROVIDER_REVOCATION_PENDING'};return {revoked:true};}catch{return {revoked:false,reason:'PROVIDER_REVOCATION_PENDING'};}
@@ -72,7 +76,7 @@ export class OAuthLifecycle {
    const token=JSON.parse(decrypt(record.ciphertext)) as Tokens;
    const result=await refreshOAuth(platform,token,scopes,expected,type,await this.settings.runtime(platform,officialId?'official':'user'));
    await this.data.db.$transaction(async tx=>{
-    const updated=await tx.credential.updateMany({where:{id:credentialId,version:record.version,revokedAt:null},data:{ciphertext:encrypt(JSON.stringify(result.tokens)),version:{increment:1}}});
+    const updated=await tx.credential.updateMany({where:{id:credentialId,version:record.version,revokedAt:null},data:{ciphertext:encrypt(JSON.stringify({...result.tokens,scopes:result.scopes})),version:{increment:1}}});
     if(updated.count!==1)throw new ConflictException('Credential changed');
     if(personalId){const a=await tx.socialAccount.updateMany({where:{id:personalId,credentialId},data:{expiresAt:new Date(result.tokens.expiresAt),lastRefreshAt:new Date(),lastError:null,scopes:result.scopes}});if(a.count!==1)throw new ConflictException('Account disconnected');}
     if(officialId){const a=await tx.officialSocialAccount.updateMany({where:{id:officialId,credentialId,deletedAt:null},data:{lastSuccessAt:new Date(),lastError:null}});if(a.count!==1)throw new ConflictException('Account disconnected');}
