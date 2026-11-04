@@ -1,3 +1,7 @@
+# v0.5.4 Kullanıcı bağlantı detayları
+
+Önce [ADMIN_USER_CONNECTION_DETAILS.md](ADMIN_USER_CONNECTION_DETAILS.md) okuyun. AdminKullanıcılar→Detaylar: kayıtlıadres, geçerlisiteoturumları,Telegramlink ve son/güncelüyelikkontrolü ayrı. Walletliveness ölçülmüyor; AuthSession çevrimiçi anlamına gelmez. İki yeni OWNER/ADMIN+MFA endpoint; güncelgetChatMember readonly, yalnızaudit yazar. Ledger/bakiye/auth/migration değişmez; claims paused. Kesin yayınkanıtı .runtime/admin-user-details-v053/ veproductionmanifest/current/Git ile doğrulanır.
+
 # v0.5.3 Telegram / mobil WalletConnect /7gün admin oturumu
 
 Önce [TELEGRAM_WALLET_SESSION_FIX.md](TELEGRAM_WALLET_SESSION_FIX.md) okuyun. Telegram JWT sub BotAPI ID değildir; doğrulanmış profile.id kullanılır. Eski hesap deployment tarafından yazılmaz; user reconnect gerekir. Mobil aynı tarayıcı WalletConnect akışı, tek namespace signing izni, app/Web/kopya grup hedefi; verified admin cookie+DBexpiry7gün, MFAstepup aynı. Yeni schema/migration/contract yok; claims paused. Kesin canlı SHA deploymentmanifest/current/Git ve .runtime/telegram-flow-v053/ son raporundan doğrulanır.

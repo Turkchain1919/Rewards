@@ -1,3 +1,7 @@
+# v0.5.4 Kullanıcı bağlantı API ekleri
+
+GET `/api/admin/users/:id/connection-details`; POST `/api/admin/users/:id/telegram-membership-check` body`{targetId}`. İkisiOWNER/ADMIN+MFA; POSTOrigin/rate30/15dk; sonkontrol sadeceokur ve auditlog yazar, ödülvermez. AyrıntılıDTO/durum/sınırlar: [ADMIN_USER_CONNECTION_DETAILS.md](ADMIN_USER_CONNECTION_DETAILS.md).
+
 # API referansı — doğrulanmış endpoint envanteri
 
 ## Canlı envanter düzeltmesi — 3 Kasım 2026, yayın sonrası doğrulama

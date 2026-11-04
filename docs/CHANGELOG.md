@@ -1,3 +1,7 @@
+# v0.5.4
+
+Kullanıcıdetaylarında kayıtlıcüzdan/geçerlicit eoturumu/Telegrambağı/üyelikdurumu ayrıldı. Saltokumaüyelikkontrolü ve güvenliprojection/RBAC testleri eklendi. Backendödül/auth/şema aynı; bkz ADMIN_USER_CONNECTION_DETAILS.md.
+
 # v0.5.3
 
 Telegram OIDC id/sub ayrımı, legacy bağlantı için yeniden bağlama, native/Web/grup kopyalama; mobil original browser WalletConnect pairing ve signing namespace düzeltmesi; MFA sonrası7gün yönetici oturumu. Muhasebe/claims/kontrat aynı. Bkz TELEGRAM_WALLET_SESSION_FIX.md.

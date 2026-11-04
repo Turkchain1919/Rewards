@@ -1,3 +1,4 @@
+import {userConnectionDetails,checkUserTelegramMembership} from './admin-user-details';
 import {Body,Controller,Get,Post,Put,Patch,Delete,Param,Query,Req} from '@nestjs/common';
 import type {Request} from 'express';
 import {z} from 'zod';
@@ -24,6 +25,8 @@ export class ManagementController {
  async manage(req:Request){return this.auth.admin(req,['OWNER','ADMIN']);}
  @Get('summary')async summary(@Req()req:Request){await this.manage(req);const db=this.auth.data.db;const [users,campaigns,tasks,pending,rewards]=await Promise.all([db.user.count(),db.campaign.count(),db.task.count(),db.submission.count({where:{status:'PENDING'}}),this.engine.balances()]);return {users,campaigns,tasks,pending,rewards};}
  @Get('users')async users(@Req()req:Request){await this.manage(req);return this.auth.data.db.user.findMany({select:{id:true,wallet:true,displayName:true,createdAt:true,_count:{select:{submissions:true,entries:true}}},orderBy:{createdAt:'desc'},take:100});}
+ @Get('users/:id/connection-details')async userDetails(@Param('id')id:string,@Req()req:Request){await this.manage(req);return userConnectionDetails(this.auth.data.db,parse(z.string().min(1).max(100),id));}
+ @Post('users/:id/telegram-membership-check')async userMembership(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);await this.auth.limit(req,'admin-membership:'+admin.id,30);const {targetId}=parse(z.object({targetId:z.string().min(1).max(100)}).strict(),body);const result=await checkUserTelegramMembership(this.auth.data.db,this.settings,parse(z.string().min(1).max(100),id),targetId);await this.auth.data.audit(admin.id,'ADMIN_TELEGRAM_MEMBERSHIP_CHECK',id+':'+targetId+':'+result.status);return result;}
  @Get('campaigns')async campaigns(@Req()req:Request){await this.manage(req);return this.auth.data.db.campaign.findMany({include:{tasks:true},orderBy:{createdAt:'desc'},take:100});}
  @Post('campaigns')async createCampaign(@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);return this.engine.saveCampaign(admin.id,parse(campaignInput,body));}
  @Put('campaigns/:id')async editCampaign(@Param('id')id:string,@Body()body:unknown,@Req()req:Request){origin(req);const {admin}=await this.manage(req);return this.engine.saveCampaign(admin.id,parse(campaignInput,body),id);}
