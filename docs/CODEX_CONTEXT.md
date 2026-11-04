@@ -1,3 +1,7 @@
+# v0.5.2 — Kullanıcı talebi: yalnız otomatik GIF
+
+Duraklat/başlat kutusu ve yazısı ana sayfa/yönetici önizlemesinden kaldırıldı. HeroMedia yalnız doğrudan img gösterir; canvas veya uygulama düzeyinde hareket azaltma/duraklatma mekanizması yoktur. GIF her iki motion tercihinde kaynak döngüsüyle otomatik oynar. Önceki aşağıdaki pause/canvas açıklamaları tarihseldir. Yeni kanıtlar .runtime/hero-autoplay-v052/ altında tutulur. Backend/DB/claims değişmez.
+
 # v0.5.2 Hero GIF doğal gösterim
 
 Önceki canlı d7beec7 mobil cüzdan/dil düzeltmesi tamamlandı. Yeni hero düzeni: ortak hero-media.tsx, doğal oran/contain, yüklenen görselde maske yok, otomatik animasyon ve erişilebilir pause checkboxı; admin preview aynı. Bkz [HERO_VISUAL.md](HERO_VISUAL.md). Kesin son canlı SHA deployment manifest/current/Git ile ve .runtime/hero-responsive-v052/ raporuyla doğrulanır. Production kayıtlarına müdahale/migration yok; claims kapalı.

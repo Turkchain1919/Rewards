@@ -1,3 +1,7 @@
+# v0.5.2 — Kullanıcı talebi: yalnız otomatik GIF
+
+Duraklat/başlat kutusu ve yazısı ana sayfa/yönetici önizlemesinden kaldırıldı. HeroMedia yalnız doğrudan img gösterir; canvas veya uygulama düzeyinde hareket azaltma/duraklatma mekanizması yoktur. GIF her iki motion tercihinde kaynak döngüsüyle otomatik oynar. Önceki aşağıdaki pause/canvas açıklamaları tarihseldir. Yeni kanıtlar .runtime/hero-autoplay-v052/ altında tutulur. Backend/DB/claims değişmez.
+
 # Hero GIF doğal oran ve responsive düzen — v0.5.2
 
 ## İncelenen durum
