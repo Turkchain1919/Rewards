@@ -1,5 +1,12 @@
 # Sistem mimarisi — Turkchain® Rewards
 
+## v0.5.1 — Admin arayüzü, 4Kasım2026
+
+UI/UX dalı `feature/admin-ui-ux-v051`; taban `dc2e8ad` (v0.5.0). Yeni rol bazlı264/72sidebar, mobil drawer, URLfragment kalıcılığı, odaklanmış tablolar, tek girişli4adım görev akışı, aranabilirIANA, sekmeli8platformAPI ve scoped dark/light tasarım. Mevcut backend/API/15migration/OAuth/Telegram/ledger/claim/RBAC/MFA aynı; yeni bağımlılık yok. Aşağıdaki eski sürüm açıklamaları tarihsel bağlamdır.
+
+Önce [ADMIN_UI_UX_STRUCTURE.md](ADMIN_UI_UX_STRUCTURE.md) okuyun: gerçek menü yolları, bütün işlev eşlemesi, UI bileşenleri, testler ve deployment kapsamı. `/tr/admin#tasks/new` örneği frontend fragmentidir, yeni API endpointi değildir. Source/backend farklılığı guard ile reddedilir; production migration yapılmaz. Son sağlıklı SHA ve gerçek kayıt sayıları deploymentmanifest/dış `ADMIN_UI_UX_RELEASE_REPORT.md` ile doğrulanır. `REWARD_CLAIMS_PAUSED=true`; yeni görev/kampanya/ödül/transfer oluşturulmaz.
+
+
 ## Canlı envanter düzeltmesi — 3 Kasım 2026, yayın sonrası doğrulama
 
 11:28UTC envanterindeki3 kampanya/4 görev, yayından **önce**,12:29:00–12:29:18UTC (Türkiye15:29) arasında OWNER oturumundan silinmiştir. Audit kayıtlarında TASK_DELETE/CAMPAIGN_DELETE ve öncesinde OWNER MFA login vardır. Güncel yayın öncesi13:03UTC yedeğinde ve migration sonrasında **0 kampanya/0 görev** bulunur; eski sütun/row hashleri eşleşir. Silmeler bu deployment veya migration tarafından yapılmamıştır. İşlemi yapan gerçek kişi yalnız audit actoründen çıkarılamaz. Mevcut kullanıcı, ledger ve CONNECTED Telegram hesabı korunur. Yeni görev/kampanya oluşturulmamış, silinmiş kayıtlar geri yüklenmemiştir.

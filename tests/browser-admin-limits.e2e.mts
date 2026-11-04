@@ -14,8 +14,8 @@ try{
    const value=path==='me'?{email:'preview@example.invalid',role:'OWNER',mfaVerified:true,enrolled:true}:path==='setup-status'?{setupRequired:false}:path==='summary'?{users:1,campaigns:1,tasks:1,pending:0,rewards:{AVAILABLE:'0'}}:path==='campaigns'?[{id:task.campaignId,title:'TELEGRAM',status:'ACTIVE',description:'Preview campaign for UI only.',budgetWei:limits.campaignBudgetWei,allocatedWei:limits.allocatedWei,tasks:[task]}]:path==='tasks/'+task.id+'/limits'?limits:[];
    return route.fulfill({status:200,contentType:'application/json',body:JSON.stringify(value)});
   });
-  await page.goto('http://127.0.0.1:18480/'+lang+'/admin',{waitUntil:'domcontentloaded'});await page.getByRole('button',{name:lang==='tr'?'Görevler':'Missions',exact:true}).click();
-  const open=()=>page.getByRole('button',{name:lang==='tr'?'Ödül ve sınırlar':'Reward and limits',exact:true}).click();await open();let dialog=page.getByRole('dialog');await dialog.waitFor();
+  await page.goto('http://127.0.0.1:18480/'+lang+'/admin#tasks',{waitUntil:'domcontentloaded'});
+  const open=async()=>{const button=page.getByRole('button',{name:lang==='tr'?'Ödül ve sınırlar':'Reward and limits',exact:true});if(!await button.isVisible())await page.locator('.admin-row-actions>summary').first().click();await button.click();};await open();let dialog=page.getByRole('dialog');await dialog.waitFor();
   assert.equal(await dialog.locator('input[name="maxRewards"]').getAttribute('min'),'2');
   await dialog.locator('input[name="reward"]').fill('2');await dialog.locator('input[name="maxRewards"]').fill('30');await dialog.locator('input[name="budget"]').fill('60');
   const save=()=>dialog.getByRole('button',{name:lang==='tr'?'Değişiklikleri kaydet':'Save changes',exact:true}).click();await save();assert.equal(captured.length,0,'confirmation checkbox required');
