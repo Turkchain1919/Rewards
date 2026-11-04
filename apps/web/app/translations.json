@@ -48,7 +48,7 @@
   "03 / TAKİP ET": "03 / TRACK",
   "6 haneli kod": "6-digit code",
   "ADMIN / GÜVENLİ YÖNETİM": "ADMIN / SECURE MANAGEMENT",
-  "(boş = değiştirme)": "(leave blank to keep)",
+  "(boş = değiştirme)": "(blank = keep current value)",
   "Authenticator uygulamanıza aşağıdaki kurulumu ekleyin.": "Add the following setup to your authenticator app.",
   "Authenticator uygulamasında aç ↗": "Open in authenticator ↗",
   "Açıklama": "Description",
@@ -70,7 +70,7 @@
   "Durum geçmişi": "State history",
   "ENV import bölümü": "Environment import section",
   "Eksik yapılandırma:": "Missing configuration:",
-  "Eksik yapılandırmalar:": "Missing settings:",
+  "Eksik yapılandırmalar:": "Missing configuration:",
   "En az kanıt uzunluğu": "Minimum evidence length",
   "Entegrasyon etkin": "Integration enabled",
   "Entegrasyon:": "Integration:",
@@ -95,7 +95,7 @@
   "Kararı kaydet": "Save decision",
   "Katılmak için yukarıdan cüzdanınızla giriş yapın.": "Sign in with your wallet above to participate.",
   "Kayıt tarihi": "Registration date",
-  "Kullanılabilir ödüllü görev türleri:": "Available reward-bearing mission types:",
+  "Kullanılabilir ödüllü görev türleri:": "Available rewarded mission types:",
   "Kurulum anahtarı sunucudaki korumalı dosyadadır. İlk hesap oluşturulduğunda bu yol kapanır.": "The setup key is in the protected server file. Setup closes after the first account is created.",
   "Kurulum anahtarı — güvenli saklayın:": "Setup secret — store securely:",
   "MFA kurulumunu başlat": "Start MFA enrollment",
@@ -627,5 +627,6 @@
   "Yeni bir MFA koduyla tekrar doğrulayın.": "Verify again using a fresh MFA code.",
   "Yapılandırma değişti. Güncel verileri yenileyip tekrar deneyin.": "Configuration changed. Refresh the data and try again.",
   "Lütfen form alanlarını kontrol edin.": "Please check the form fields.",
-  "Seçilen OAuth izni bu platform için desteklenmiyor.": "The selected OAuth scope is not supported for this platform."
+  "Seçilen OAuth izni bu platform için desteklenmiyor.": "The selected OAuth scope is not supported for this platform.",
+  "MFA doğrulandı": "MFA verified"
 }
