@@ -18,6 +18,9 @@ PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx --tscon
 PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx --tsconfig apps/api/tsconfig.json tests/browser-multi-social.e2e.mts
 PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx --tsconfig apps/api/tsconfig.json tests/browser-admin-redesign.e2e.mts
 PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx --tsconfig apps/api/tsconfig.json tests/browser-mobile-locale-hero.e2e.mts
+for hero_browser in chromium firefox webkit; do
+ HERO_BROWSER="$hero_browser" PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx tests/browser-hero-responsive.e2e.mts
+done
 (cd packages/contracts && forge test -vv)
 npm audit --omit=dev --audit-level=high
 npx prisma migrate status

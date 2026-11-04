@@ -646,5 +646,6 @@
   "Oturum kapatıldı.": "Signed out.",
   "MetaMask veya uyumlu bir EVM cüzdanı yükleyin.": "Install or enable MetaMask or a compatible EVM wallet.",
   "Topluluk üyesi": "Community member",
-  "Cüzdan hazırlanıyor…": "Preparing wallet…"
+  "Cüzdan hazırlanıyor…": "Preparing wallet…",
+  "Animasyonu duraklat": "Pause animation"
 }

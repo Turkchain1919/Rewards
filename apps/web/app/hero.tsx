@@ -1,16 +1,14 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useState} from 'react';
 import {T,useLanguage} from './i18n';
 import Link from 'next/link';
 import {useRuntime} from './runtime';
+import HeroMedia from './hero-media';
 type HeroImage={url:string;width:number;height:number};
 export default function Hero(){
  const {config}=useRuntime(),lang=useLanguage(),branding=config?.branding,title=(lang==='en'?branding?.homepageTitleEn:branding?.homepageTitleTr)||branding?.homepageTitle||'Community rewards';
- const [image,setImage]=useState<HeroImage|null>(null),[reduced,setReduced]=useState(false),[animate,setAnimate]=useState(false),[frameReady,setFrameReady]=useState(false),img=useRef<HTMLImageElement>(null),canvas=useRef<HTMLCanvasElement>(null),still=reduced&&!animate;
- useEffect(()=>{const preference=matchMedia('(prefers-reduced-motion: reduce)'),change=()=>{setReduced(preference.matches);setAnimate(false);};change();preference.addEventListener('change',change);return()=>preference.removeEventListener('change',change);},[]);
+ const [image,setImage]=useState<HeroImage|null>(null);
  useEffect(()=>{let active=true,request=0;const controller=new AbortController();async function load(){const ticket=++request;try{const r=await fetch('/api/hero',{cache:'no-store',signal:controller.signal});if(!r.ok)return;const d=await r.json();if(active&&ticket===request)setImage(d?.url?d:null);}catch{}}
  const visible=()=>{if(document.visibilityState==='visible')void load();};const storage=(event:StorageEvent)=>{if(event.key==='rewards-hero-updated')visible();};void load();window.addEventListener('focus',visible);window.addEventListener('rewards-hero',visible);document.addEventListener('visibilitychange',visible);window.addEventListener('storage',storage);return()=>{active=false;controller.abort();window.removeEventListener('storage',storage);window.removeEventListener('focus',visible);window.removeEventListener('rewards-hero',visible);document.removeEventListener('visibilitychange',visible);};},[]);
- function paint(){const picture=img.current,target=canvas.current;if(!picture?.complete||!picture.naturalWidth||!target)return;const context=target.getContext('2d');if(!context)return;target.width=picture.naturalWidth;target.height=picture.naturalHeight;context.drawImage(picture,0,0);setFrameReady(true);}
- useEffect(()=>{setFrameReady(false);if(still)paint();},[image?.url,still]);
- return <section className="hero"><div><h1>{title}</h1><p><T value="Topluluğa katıl. Kampanyaları keşfet. Doğrulanmış katkılarını tek bir yerden takip et."/></p><Link className="button" href={'/'+lang+'/dashboard'}><T value="Kampanyaları keşfet "/><span>↗</span></Link></div><div className={'hero-visual '+(animate?'hero-motion-enabled':'')}><div className="orb" aria-hidden="true">{image&&<><img ref={img} className="hero-gif" src={image.url} alt="" onLoad={paint} onError={()=>{setImage(null);setFrameReady(false);}}/>{still&&<canvas ref={canvas} className="hero-static" data-ready={frameReady} hidden={!frameReady}/>}</>}<div className="orb-fallback"><span>✦</span><small>{config?.currency.symbol||''} / {config?.chainId||''}</small></div></div>{image&&reduced&&<button type="button" className="hero-motion-control" aria-pressed={animate} onClick={()=>setAnimate(v=>!v)}><T value={animate?'GIF animasyonunu durdur':'GIF animasyonunu oynat'}/></button>}</div></section>;
+ return <section className="hero"><div><h1>{title}</h1><p><T value="Topluluğa katıl. Kampanyaları keşfet. Doğrulanmış katkılarını tek bir yerden takip et."/></p><Link className="button" href={'/'+lang+'/dashboard'}><T value="Kampanyaları keşfet "/><span>↗</span></Link></div><div className="hero-visual">{image?<HeroMedia key={image.url} src={image.url} onError={()=>setImage(null)}/>:<div className="orb" aria-hidden="true"><div className="orb-fallback"><span>✦</span><small>{config?.currency.symbol||''} / {config?.chainId||''}</small></div></div>}</div></section>;
 }

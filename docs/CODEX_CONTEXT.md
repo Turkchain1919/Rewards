@@ -1,3 +1,7 @@
+# v0.5.2 Hero GIF doğal gösterim
+
+Önceki canlı d7beec7 mobil cüzdan/dil düzeltmesi tamamlandı. Yeni hero düzeni: ortak hero-media.tsx, doğal oran/contain, yüklenen görselde maske yok, otomatik animasyon ve erişilebilir pause checkboxı; admin preview aynı. Bkz [HERO_VISUAL.md](HERO_VISUAL.md). Kesin son canlı SHA deployment manifest/current/Git ile ve .runtime/hero-responsive-v052/ raporuyla doğrulanır. Production kayıtlarına müdahale/migration yok; claims kapalı.
+
 # v0.5.2 aday frontend düzeltmesi
 
 Mobil MetaMask dapp yönlendirmesi, anlık TR/EN ve reduced-motion GIF görünürlüğü. Backend/DB/kontrat değişikliği yok. Ayrıntılar: [MOBILE_WALLET_LOCALE_HERO_FIX.md](MOBILE_WALLET_LOCALE_HERO_FIX.md). Yayın sonucu runtime kanıtıyla doğrulanmalıdır.

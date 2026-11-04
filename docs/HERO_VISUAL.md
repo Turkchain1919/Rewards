@@ -1,5 +1,19 @@
-# Homepage hero visual
-OWNER users open **Administration → System** and use **Homepage Hero GIF**. Choose a GIF, inspect its local preview and select **Save and publish**. Stored media lives as PostgreSQL BYTEA outside application build artifacts; the singleton row also stores randomized filename, SHA-256, dimensions, byte size, frame count and enabled/published state.
-Uploads are raw image/gif requests capped at5 MiB. The server checks GIF87a/GIF89a structure, decodes frame image data, limits canvas dimensions to1200×1200, frame count to300 and total decoded frame area to60 million pixels. Filename is a random 128-bit hex name; no uploaded value is interpreted as a filesystem path. Target dimensions around600×600 with square aspect ratio are recommended.
-Only an authenticated OWNER with MFA can upload, change publication state or remove the media. Credential step-up is requested when needed. Uploads are rate limited and audited; logs contain no image bytes. Public endpoints return metadata only for the current published and enabled image, and serve bytes as image/gif with hash ETag. API responses are not cached by Next; the image URL changes when the GIF changes.
-The homepage requests the current public setting without cache. It clips the image into the existing orb; on request failure the existing star/currency/chain design remains visible. Reduced-motion preference also shows that static design. GIF bytes are in PostgreSQL, so the existing database backup/restore covers them through service/server restart and release promotion.
+# Hero GIF doğal oran ve responsive düzen — v0.5.2
+
+## İncelenen durum
+Production taban commit d7beec7; sunucu138.226.246.138, TEST /var/www/rewards.turkscan.com/REWARDSTEST; production /var/www/rewards.turkscan.com/rewards. Önceki sürümün hareket azaltma tercihi canvas üzerinde sabit kare gösteriyordu; GIF bozulmuş değildi. Normal koşullarda doğrudan img zaten animasyon taşıyordu. Dairesel orb, object-fit:cover, border-radius:50% ve dekoratif arka plan yüklenen dosyaya uygulanıyordu. Admin önizlemesi de kare/dairesel kırpma yapıyordu.
+
+## Gerçek dosya analizi
+Public image/gif response;1737151byte;440×440;48kare;yaklaşık2330ms;NETSCAPE2.0 loop0 (sonsuz). URL SHA256 içeriğe göre değişir, ETag aynı hash, Cache-Control public,max-age=60,must-revalidate. Next Image/optimizasyon/CDN dönüşümü kullanılmıyor; orijinal DB BYTEA sunuluyor. RGB parlaklık eşiği12 ile ilk kare görünür sınırı [43,24,398,377], tüm patchlerin birleşimi [41,23,398,378] (sağ/alt hariç). Siyah dosya içi boşluklar korunur; CSS ile kesilmez. Bu eşik ölçümü semantik nesne segmentasyonu değildir.
+
+## Yeni gösterim
+apps/web/app/hero-media.tsx ana sayfa ve yönetici önizlemesinde ortak bileşendir. img width100%,heightauto,object-fitcontain; maxwidth440px; sıfır radius/border/clip/effect. Masaüstünde dengeli iki sütun, tablette uyarlanmış iki sütun,700px altında tek sütun. Kaynak GIF'in döngüsü değiştirilmez. Normal tercihte otomatik oynar; başlat düğmesi yoktur. Erişilebilir 'Animasyonu duraklat / Pause animation' checkboxı sabit canvas karesine geçer. Reduced-motion başlangıçta bu seçeneği açık tutar, kullanıcı isterse kapatabilir. Dosya yokken özgün yıldız/TURK fallback korunur; yüklenmiş GIF orb içine alınmaz.
+
+## Yönetim ve cache
+Mevcut upload/değiştir/kaldır/enable/state/MFA ve5MiB/1200×1200/300frame/60Mpixel güvenlik limitleri aynı backend ile korunur. Yayındaki görsel admin ekranında da ortak bileşenle önizlenir. Değiştirme sonrası yeni hash URL kullanılır; aynı sayfa customevent, diğer sekmeler localStorage timestamp, odağa dönüş görünürlük olayı güncel metadata getirir. Metadata no-store; orijinal asset byte ve cache header değiştirilmez.
+
+## Test kanıtı
+browser-hero-responsive.e2e.mts gerçek48kareli dosyayla img screenshot hashlerinin zaman içinde değişmesini, duraklatılmış canvasın sabitliğini,440px üst sınırını, doğal oranı ve daire/overflow olmamasını TR/EN1440/820/390 üzerinde doğrular. Chromium/Firefox/WebKit sunucuda; gerçek Chrome/Edge Windows üzerinde SSH TEST tüneliyle çalıştırılır. WebKit testi gerçek iOS/Safari cihaz testi değildir. Ayrı admin browser testi TEST üzerinde yükleme/değiştirme/hashyenileme/sekme senkronu/kaldırma/özgün tasarıma dönüş/APIrestart sonrası byte korumasını doğrular; production üzerinde yazma yapılmaz. Kesin sonuçlar .runtime/hero-responsive-v052/ dosyalarındadır.
+
+## Yayın sınırı
+Yalnız apps/web, tests,docs,test-all.sh. API/Prisma/dependency/kontrat değişikliği veya migration yok. Production yedeği restore edilerek23tablo hashleriyle karşılaştırılır; yayın öncesi/sonrası tüm23tablo aynı kalmalıdır. Claims paused ve gerçek transferler kapalıdır. Önceki immutable release rollback için korunur. Yeni görev/kampanya/ödül oluşturulmaz.

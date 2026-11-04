@@ -1,3 +1,7 @@
+# v0.5.2 Hero responsive düzeltmesi
+
+Yüklenen GIF için dairesel kırpma kaldırıldı; doğal oranlı responsive görünüm, ortak admin önizlemesi ve duraklatma eklendi. Gerçek kare değişimi çoklu tarayıcı testiyle denetlenir.
+
 # v0.5.2 aday frontend düzeltmesi
 
 Mobil MetaMask dapp yönlendirmesi, anlık TR/EN ve reduced-motion GIF görünürlüğü. Backend/DB/kontrat değişikliği yok. Ayrıntılar: [MOBILE_WALLET_LOCALE_HERO_FIX.md](MOBILE_WALLET_LOCALE_HERO_FIX.md). Yayın sonucu runtime kanıtıyla doğrulanmalıdır.
