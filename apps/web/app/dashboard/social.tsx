@@ -7,7 +7,7 @@ type Social = {
     ready: boolean;
     status: string;
     account: {
-        accountName: string;lastError?:string|null;
+        accountName: string;reconnectRequired?:boolean;lastError?:string|null;
         expiresAt: string | null;
         scopes: string[];
     } | null;
@@ -20,7 +20,7 @@ export default function SocialAccounts() {
         setAccounts([]);
     else
         setError('Sosyal hesaplar yüklenemedi.'); }
-    useEffect(() => { void load(); const listener = () => void load(); window.addEventListener('rewards-auth', listener); return () => window.removeEventListener('rewards-auth', listener); }, []);
+    useEffect(() => {const result=new URLSearchParams(location.search).get('social');if(result==='error'||result==='denied')setError('Sosyal hesap bağlantısı tamamlanmadı. Aynı tarayıcıdan yeniden deneyin.');if(result==='connected')setError('Sosyal hesap bağlandı. Gruba katıldıktan sonra üyeliğinizi ayrıca doğrulayın.'); void load(); const listener = () => void load(); window.addEventListener('rewards-auth', listener); return () => window.removeEventListener('rewards-auth', listener); }, []);
     async function connect(p: string) { setBusy(true); setError(''); try {
         const r = await fetch('/api/social/' + p.toLowerCase() + '/connect', { method: 'POST' });
         const data = await r.json();
@@ -47,6 +47,6 @@ export default function SocialAccounts() {
     } }
     if (!accounts.length)
         return null;
-    return <section><h2><T value="Sosyal hesaplar"/></h2><p><T value="Hesabınızı yalnızca görevin gerektirdiği platform için bağlayın. Telegram üyeliği sunucuda doğrulanır; bağlantı tek başına ödül kazandırmaz."/></p>{error && <div className="notice" role="status">{error}</div>}<p><T value="Hesap kaldırıldığında tokenlar iptal edilir. Tekrar ödülü önlemek için görevle ilişkili tek yönlü kimlik özeti korunur."/></p><div className="grid">{accounts.filter(a=>['X','YOUTUBE','INSTAGRAM','TELEGRAM','FACEBOOK','KICK','TWITCH','TIKTOK'].includes(a.platform)||!!a.account).map(a => <article key={a.platform}><h3><SocialIcon platform={a.platform}/>{a.platform}</h3>{a.account ? <><p>{a.account.accountName} · <T value={a.account.lastError==='REAUTH_REQUIRED'||a.account.expiresAt && new Date(a.account.expiresAt) < new Date() ? 'Yeniden bağlantı gerekli' : 'Bağlı'}/></p><button disabled={busy} onClick={() => void fetch('/api/social/' + a.platform.toLowerCase() + '/refresh', { method: 'POST' }).then(async (r) => { const d = await r.json(); if (!r.ok)
+    return <section><h2><T value="Sosyal hesaplar"/></h2><p><T value="Hesabınızı yalnızca görevin gerektirdiği platform için bağlayın. Telegram üyeliği sunucuda doğrulanır; bağlantı tek başına ödül kazandırmaz."/></p>{error && <div className="notice" role="status"><T value={error}/></div>}<p><T value="Telegram ekranında uygulama açılmazsa QR veya telefon numarası seçeneğiyle devam edin. İşlemi başlattığınız tarayıcıya dönün."/></p><p><T value="Hesap kaldırıldığında tokenlar iptal edilir. Tekrar ödülü önlemek için görevle ilişkili tek yönlü kimlik özeti korunur."/></p><div className="grid">{accounts.filter(a=>['X','YOUTUBE','INSTAGRAM','TELEGRAM','FACEBOOK','KICK','TWITCH','TIKTOK'].includes(a.platform)||!!a.account).map(a => <article key={a.platform}><h3><SocialIcon platform={a.platform}/>{a.platform}</h3>{a.account ? <><p>{a.account.accountName} · <T value={a.account.lastError==='REAUTH_REQUIRED'||a.account.expiresAt && new Date(a.account.expiresAt) < new Date() ? 'Yeniden bağlantı gerekli' : 'Bağlı'}/></p><button disabled={busy} onClick={() => void fetch('/api/social/' + a.platform.toLowerCase() + '/refresh', { method: 'POST' }).then(async (r) => { const d = await r.json(); if (!r.ok)
         throw new Error(d.message); await load(); }).catch(e => setError(e.message))}><T value="Token yenile"/></button><button disabled={busy||!a.ready} onClick={()=>void connect(a.platform)}><T value="Hesabı yeniden bağla"/></button><button disabled={busy} onClick={() => void disconnect(a.platform)}><T value="Bağlantıyı kaldır"/></button></> : <><p><T value={a.ready ? 'Bağlanmaya hazır' : 'API yapılandırması bekleniyor'}/></p><button disabled={busy || !a.ready} onClick={() => void connect(a.platform)}><T value="Hesabı bağla"/></button></>}</article>)}</div></section>;
 }

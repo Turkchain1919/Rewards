@@ -33,7 +33,9 @@ test('admin bootstrap, MFA replay defense, roles, sessions and browser-bound wal
   const secret=enrolled.data.secret as string;
   assert.equal((await call('admin/mfa/verify','POST',{code:'not-a-code'})).r.status,400);
   const code=new OTPAuth.TOTP({secret:OTPAuth.Secret.fromBase32(secret)}).generate();
-  assert.equal((await call('admin/mfa/verify','POST',{code})).r.status,201);
+  const verifiedSession=await call('admin/mfa/verify','POST',{code});assert.equal(verifiedSession.r.status,201);assert.ok(verifiedSession.r.headers.getSetCookie().some(value=>/Max-Age=604800/.test(value)),'MFA admin cookie persists seven days');
+  const storedSession=await db.authSession.findUniqueOrThrow({where:{id:digest(jar.get('rewards_test_admin')!)}});assert.ok(storedSession.expiresAt.getTime()-Date.now()>6.99*86400000);
+
   const me=await call('admin/me');assert.equal(me.data.mfaVerified,true);assert.equal(me.data.role,'OWNER');
   assert.equal((await call('admin/accounts')).r.status,200);
   const owner=await db.admin.findUniqueOrThrow({where:{email}});assert.ok(owner.totpEncrypted);assert.notEqual(owner.totpEncrypted,secret);

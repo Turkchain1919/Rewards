@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {isMobileWalletBrowser,metaMaskDappLink,walletConnectionError} from '../apps/web/app/wallet-connection';
+import {isMobileWalletBrowser,metaMaskDappLink,walletConnectionError,metaMaskPairingLink} from '../apps/web/app/wallet-connection';
 test('mobile wallet detection includes Android, iOS and desktop-UA iPad without assuming a desktop touchscreen is a phone',()=>{
  for(const hints of [{userAgent:'Mozilla/5.0 (Linux; Android 14)'},{userAgent:'Mozilla/5.0 (iPhone; CPU iPhone OS 18)'},{userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X)',platform:'MacIntel',maxTouchPoints:5},{userAgent:'Custom mobile',userAgentData:{mobile:true}}])assert.equal(isMobileWalletBrowser(hints),true);
  assert.equal(isMobileWalletBrowser({userAgent:'Mozilla/5.0 (Windows NT 10.0)',maxTouchPoints:10}),false);assert.equal(isMobileWalletBrowser({userAgent:'Mozilla/5.0 (Macintosh; Intel Mac OS X)',maxTouchPoints:0}),false);
@@ -13,3 +13,5 @@ test('official MetaMask link opens this localized dapp only, without forwarding 
 test('wallet rejections and already-pending approvals have distinct actionable messages',()=>{
  assert.match(walletConnectionError({code:4001,message:'User rejected'}),/reddedildi/);assert.match(walletConnectionError({code:-32002}),/bekleyen/);assert.equal(walletConnectionError({message:'Chain mismatch'}),'Chain mismatch');assert.match(walletConnectionError(null),/tamamlanamadı/);
 });
+
+test('MetaMask pairing opens the wallet approval channel, not a dapp browser URL',()=>{const uri='wc:'+'a'.repeat(64)+'@2?relay-protocol=irn&symKey='+'b'.repeat(64);const u=new URL(metaMaskPairingLink(uri));assert.equal(u.protocol,'metamask:');assert.equal(u.hostname,'wc');assert.equal(u.searchParams.get('uri'),uri);assert.throws(()=>metaMaskPairingLink('https://attacker.invalid'));});

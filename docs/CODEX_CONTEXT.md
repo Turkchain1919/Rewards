@@ -1,3 +1,7 @@
+# v0.5.3 Telegram / mobil WalletConnect /7gün admin oturumu
+
+Önce [TELEGRAM_WALLET_SESSION_FIX.md](TELEGRAM_WALLET_SESSION_FIX.md) okuyun. Telegram JWT sub BotAPI ID değildir; doğrulanmış profile.id kullanılır. Eski hesap deployment tarafından yazılmaz; user reconnect gerekir. Mobil aynı tarayıcı WalletConnect akışı, tek namespace signing izni, app/Web/kopya grup hedefi; verified admin cookie+DBexpiry7gün, MFAstepup aynı. Yeni schema/migration/contract yok; claims paused. Kesin canlı SHA deploymentmanifest/current/Git ve .runtime/telegram-flow-v053/ son raporundan doğrulanır.
+
 # v0.5.2 — Kullanıcı talebi: yalnız otomatik GIF
 
 Duraklat/başlat kutusu ve yazısı ana sayfa/yönetici önizlemesinden kaldırıldı. HeroMedia yalnız doğrudan img gösterir; canvas veya uygulama düzeyinde hareket azaltma/duraklatma mekanizması yoktur. GIF her iki motion tercihinde kaynak döngüsüyle otomatik oynar. Önceki aşağıdaki pause/canvas açıklamaları tarihseldir. Yeni kanıtlar .runtime/hero-autoplay-v052/ altında tutulur. Backend/DB/claims değişmez.

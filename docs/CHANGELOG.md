@@ -1,3 +1,7 @@
+# v0.5.3
+
+Telegram OIDC id/sub ayrımı, legacy bağlantı için yeniden bağlama, native/Web/grup kopyalama; mobil original browser WalletConnect pairing ve signing namespace düzeltmesi; MFA sonrası7gün yönetici oturumu. Muhasebe/claims/kontrat aynı. Bkz TELEGRAM_WALLET_SESSION_FIX.md.
+
 # v0.5.2 — Kullanıcı talebi: yalnız otomatik GIF
 
 Duraklat/başlat kutusu ve yazısı ana sayfa/yönetici önizlemesinden kaldırıldı. HeroMedia yalnız doğrudan img gösterir; canvas veya uygulama düzeyinde hareket azaltma/duraklatma mekanizması yoktur. GIF her iki motion tercihinde kaynak döngüsüyle otomatik oynar. Önceki aşağıdaki pause/canvas açıklamaları tarihseldir. Yeni kanıtlar .runtime/hero-autoplay-v052/ altında tutulur. Backend/DB/claims değişmez.

@@ -1,3 +1,5 @@
+import {telegramUserId} from './telegram-identity';
+import {socialIdentityHash} from './social-identity';
 import {Controller,Get,Post,Delete,Param,Query,Req,Res,ServiceUnavailableException,UnauthorizedException,ConflictException} from '@nestjs/common';
 import type {Request,Response} from 'express';
 import {randomBytes} from 'node:crypto';
@@ -15,8 +17,8 @@ export class SocialController {
  platform(name:string):Platform{return parse(z.enum(socialPlatforms),name.toUpperCase());}
  @Get('accounts')async accounts(@Req()req:Request){
   const user=await this.auth.user(req);
-  const accounts=await this.auth.data.db.socialAccount.findMany({where:{userId:user.id},select:{provider:true,accountName:true,expiresAt:true,createdAt:true,scopes:true,lastError:true}});
-  return (await this.settings.list()).map(provider=>({...provider,account:accounts.find(a=>a.provider===provider.platform)||null}));
+  const accounts=await this.auth.data.db.socialAccount.findMany({where:{userId:user.id},select:{provider:true,providerAccountId:true,accountName:true,expiresAt:true,createdAt:true,scopes:true,lastError:true}});
+  return (await this.settings.list()).map(provider=>{const account=accounts.find(a=>a.provider===provider.platform);if(!account)return {...provider,account:null};const {providerAccountId,...publicAccount}=account,reconnectRequired=provider.platform==='TELEGRAM'&&!telegramUserId(providerAccountId);return {...provider,account:{...publicAccount,reconnectRequired,lastError:reconnectRequired?'REAUTH_REQUIRED':account.lastError}};});
  }
  @Post(':provider/connect')async connect(@Param('provider')name:string,@Req()req:Request,@Res({passthrough:true})res:Response){
   origin(req);const user=await this.auth.user(req);await this.auth.limit(req,'oauth:'+user.id,12);
@@ -54,10 +56,12 @@ export class SocialController {
    await this.auth.data.db.$transaction(async tx=>{
     await tx.$queryRaw`SELECT "userId" FROM "SocialLinkState" WHERE "userId"=${state.userId} AND "provider"=${platform} FOR UPDATE`;
     const generation=await tx.socialLinkState.findUniqueOrThrow({where:{userId_provider:{userId:state.userId,provider:platform}}});if(generation.generation!==state.generation)throw new ConflictException('Connection was cancelled');
+    // Never discard a legacy reward reservation during canonical-ID repair.
+    if(platform==='TELEGRAM'&&profile.legacyAccountId&&profile.legacyAccountId!==profile.accountId&&await tx.socialRewardIdentity.count({where:{provider:platform,accountHash:socialIdentityHash(platform,profile.legacyAccountId)}}))throw new ConflictException('Legacy Telegram reward identity requires review');
     const existing=await tx.socialAccount.findUnique({where:{provider_providerAccountId:{provider:platform,providerAccountId:profile.accountId}}});
     if(existing&&existing.userId!==state.userId)throw new ConflictException('Account already linked');
     const credential=await this.secrets.write(tx,'PERSONAL_ACCOUNT',state.userId+':'+platform,'TOKENS',JSON.stringify(profile.tokens),state.userId);
-    const data={providerAccountId:profile.accountId,accountName:profile.name,credentialId:credential.id,encryptedTokens:null,expiresAt:new Date(profile.tokens.expiresAt),scopes:profile.scopes};
+    const data={providerAccountId:profile.accountId,accountName:profile.name,credentialId:credential.id,encryptedTokens:null,lastError:null,expiresAt:new Date(profile.tokens.expiresAt),scopes:profile.scopes};
     await tx.socialAccount.upsert({where:{userId_provider:{userId:state.userId,provider:platform}},create:{...data,userId:state.userId,provider:platform},update:data});
     await tx.auditEvent.create({data:{actor:state.userId,action:'SOCIAL_LINK',resource:platform}});
    });

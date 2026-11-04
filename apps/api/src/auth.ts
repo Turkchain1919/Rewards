@@ -17,7 +17,7 @@ export class AuthService {
   if(count>max)throw new HttpException('Try again later',429);
  }
  async issue(res:Response,kind:'admin'|'user',subject:string,verified=false,replace?:string){
-  const token=randomBytes(32).toString('hex'),id=digest(token),seconds=kind==='admin'?3600:86400;
+  const token=randomBytes(32).toString('hex'),id=digest(token),seconds=kind==='admin'?(verified?7*86400:3600):86400;
   await this.data.db.$transaction(async tx=>{
    if(replace)await tx.authSession.deleteMany({where:{id:replace}});
    await tx.authSession.create({data:{id,adminId:kind==='admin'?subject:null,userId:kind==='user'?subject:null,mfaVerified:verified,expiresAt:new Date(Date.now()+seconds*1000)}});

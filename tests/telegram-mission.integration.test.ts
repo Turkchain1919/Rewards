@@ -45,6 +45,12 @@ test('Telegram membership missions publish, appear to users and credit Available
   assert.ok(visible.some(row=>row.id===task.id),'published Telegram task should be in the public user task list');
   await db.socialAccount.create({data:{userId:member.id,provider:'TELEGRAM',providerAccountId:'987654321',accountName:'fixture-user',scopes:[]}});
   await db.socialAccount.create({data:{userId:nonmember.id,provider:'TELEGRAM',providerAccountId:'123456789',accountName:'fixture-nonmember',scopes:[]}});
+  await db.socialAccount.update({where:{userId_provider:{userId:member.id,provider:'TELEGRAM'}},data:{providerAccountId:'12341234123412341234'}});
+  const attemptsBefore=await db.auditEvent.count({where:{actor:member.id,action:'TELEGRAM_VERIFICATION_STARTED'}});
+  await assert.rejects(()=>engine.verifyTelegram(member.id,task.id,network.networkKey,async()=>{throw new Error('Invalid identity must not reach provider');}),/Link your Telegram account/);
+  assert.equal(await db.auditEvent.count({where:{actor:member.id,action:'TELEGRAM_VERIFICATION_STARTED'}}),attemptsBefore);assert.equal(await db.ledgerEntry.count({where:{userId:member.id}}),0);
+  assert.equal((await engine.userTaskBoard(member.id,network.networkKey)).find(t=>t.id===task.id)?.userStatus,'CONNECTION_REQUIRED');
+  await db.socialAccount.update({where:{userId_provider:{userId:member.id,provider:'TELEGRAM'}},data:{providerAccountId:'987654321'}});
   const joined:typeof fetch=async(input)=>{const url=new URL(String(input));assert.equal(url.searchParams.get('chat_id'),connectedAccount.accountId);assert.equal(url.searchParams.get('user_id'),'987654321');return new Response(JSON.stringify({ok:true,result:{status:'member'}}),{status:200});};
   // A reward edit while Bot API verification is in flight cannot silently change the award.
   let limitsRelease!:()=>void,limitsEntered!:()=>void;

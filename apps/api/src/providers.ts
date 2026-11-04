@@ -1,5 +1,6 @@
 import {createHash,createHmac} from 'node:crypto';
 import {createRemoteJWKSet,jwtVerify} from 'jose';
+import {telegramUserId} from './telegram-identity';
 import {credentials} from './social-config';
 export const socialPlatforms=['X','TELEGRAM','FACEBOOK','INSTAGRAM','YOUTUBE','TIKTOK','KICK','TWITCH','DISCORD','GITHUB'] as const;
 export type Platform=typeof socialPlatforms[number];
@@ -44,7 +45,7 @@ export function authorizationUrl(platform:Platform,state:string,verifier:string,
  return url.toString();
 }
 type Json=Record<string,unknown>;
-export type TokenProfile={accountId:string;name:string;tokens:{accessToken:string;refreshToken?:string;expiresAt:number};scopes:string[];targets?:{accountId:string;name:string;accountType:string;profileUrl:string;tokens?:{accessToken:string;refreshToken?:string;expiresAt:number}}[]};
+export type TokenProfile={accountId:string;legacyAccountId?:string;name:string;tokens:{accessToken:string;refreshToken?:string;expiresAt:number};scopes:string[];targets?:{accountId:string;name:string;accountType:string;profileUrl:string;tokens?:{accessToken:string;refreshToken?:string;expiresAt:number}}[]};
 async function json(fetcher:typeof fetch,url:string,init:RequestInit={}):Promise<Json>{
  const response=await fetcher(url,{...init,redirect:'error',signal:AbortSignal.timeout(10000)});
  if(!response.ok)throw new Error('Provider request rejected');
@@ -54,9 +55,10 @@ async function json(fetcher:typeof fetch,url:string,init:RequestInit={}):Promise
 function text(value:unknown):string{if(typeof value!=='string'||!value||value.length>10000)throw new Error('Provider response field invalid');return value;}
 const telegramKeys=createRemoteJWKSet(new URL('https://oauth.telegram.org/.well-known/jwks.json'));
 export async function telegramIdentity(idToken:string,audience:string,nonce:string,verify=jwtVerify){
- const {payload}=await verify(idToken,telegramKeys,{issuer:'https://oauth.telegram.org',audience,algorithms:['RS256','ES256'],requiredClaims:['sub','exp','iat','nonce']});
+ const {payload}=await verify(idToken,telegramKeys,{issuer:'https://oauth.telegram.org',audience,algorithms:['RS256','ES256'],requiredClaims:['sub','id','exp','iat','nonce']});
  if(payload.nonce!==nonce)throw new Error('OIDC nonce rejected');
- return {accountId:text(payload.sub),name:typeof payload.preferred_username==='string'?payload.preferred_username:typeof payload.name==='string'?payload.name:'Telegram member'};
+ const accountId=telegramUserId(payload.id);if(!accountId)throw new Error('Telegram Bot API identity invalid');
+ return {accountId,legacyAccountId:text(payload.sub),name:typeof payload.preferred_username==='string'?payload.preferred_username:typeof payload.name==='string'?payload.name:'Telegram member'};
 }
 export async function exchange(platform:Platform,code:string,verifier:string,nonce:string,fetcher:typeof fetch=fetch,override:ProviderOverride={}):Promise<TokenProfile>{
  const c=configuration(platform,override);if(!c.ready)throw new Error('Provider unavailable');
@@ -73,8 +75,8 @@ export async function exchange(platform:Platform,code:string,verifier:string,non
  const scopes=typeof token.scope==='string'?token.scope.split(/[ ,]+/).filter(Boolean):Array.isArray(token.scope)&&token.scope.every(s=>typeof s==='string')?token.scope as string[]:c.definition.scopes;
  if((['X','TIKTOK','YOUTUBE','KICK','TWITCH'].includes(platform))&&((typeof token.scope!=='string'&&!Array.isArray(token.scope))||!c.definition.scopes.every(scope=>scopes.includes(scope))))throw new Error('Required permissions not granted');
  const get=(url:string)=>json(fetcher,url,{headers:{Authorization:'Bearer '+accessToken}});
- let accountId='',name='';let targets:TokenProfile['targets'];
- if(platform==='TELEGRAM'){const identity=await telegramIdentity(text(token.id_token),c.clientId,nonce);accountId=identity.accountId;name=identity.name;}
+ let accountId='',name='',legacyAccountId:string|undefined;let targets:TokenProfile['targets'];
+ if(platform==='TELEGRAM'){const identity=await telegramIdentity(text(token.id_token),c.clientId,nonce);accountId=identity.accountId;legacyAccountId=identity.legacyAccountId;name=identity.name;}
  else if(platform==='X'){const profile=await get('https://api.x.com/2/users/me');const user=profile.data as Json;accountId=text(user?.id);name=text(user?.username||user?.name);}
  else if(platform==='YOUTUBE'){const profile=await get('https://www.googleapis.com/youtube/v3/channels?part=id,snippet&mine=true&maxResults=1');const channel=(profile.items as Json[]|undefined)?.[0];accountId=text(channel?.id);name=text((channel?.snippet as Json|undefined)?.title);}
  else if(platform==='TIKTOK'){const profile=await get('https://open.tiktokapis.com/v2/user/info/?fields=open_id,display_name');const user=(profile.data as Json|undefined)?.user as Json|undefined;accountId=text(user?.open_id);name=text(user?.display_name);}
@@ -86,5 +88,5 @@ export async function exchange(platform:Platform,code:string,verifier:string,non
  else {const profile=await get('https://graph.instagram.com/'+c.version+'/me?fields=user_id,username');accountId=text(profile.user_id||profile.id);name=text(profile.username);}
  if(accountId.length>200)throw new Error('Provider identity invalid');
  const expires=Number(token.expires_in);const seconds=Number.isFinite(expires)&&expires>0?Math.min(expires,86400):3600;
- return {accountId,name:name.slice(0,100),tokens:{accessToken,refreshToken,expiresAt:Date.now()+seconds*1000},scopes,targets};
+ return {accountId,legacyAccountId,name:name.slice(0,100),tokens:{accessToken,refreshToken,expiresAt:Date.now()+seconds*1000},scopes,targets};
 }

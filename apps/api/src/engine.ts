@@ -9,6 +9,7 @@ import {canEnableTask} from './policy';
 import {IntegrationSettings} from './integration-settings';
 import {telegramMembership} from './telegram-verifier';
 import {catalogTask} from './social-catalog';
+import {telegramUserId} from './telegram-identity';
 import {socialIdentityHash} from './social-identity';
 import {parseSocialTarget} from './social-targets';
 import {socialAdapters} from './social-adapters';
@@ -284,7 +285,7 @@ export class EngineService {
    }
    const rewardQuota=await this.rewardQuota(this.data.db,task);if(rewardQuota?.remainingRewards===0)continue;
    const previous=byTask.get(task.id),taskExpired=!!task.endsAt&&task.endsAt<=now,campaignExpired=!!task.campaign.endsAt&&task.campaign.endsAt<=now,notStarted=!!task.startsAt&&task.startsAt>now||!!task.campaign.startsAt&&task.campaign.startsAt>now;
-   const userStatus=previous?.status==='APPROVED'?'COMPLETED':previous?.status==='PENDING'?'PENDING':previous?.status==='REJECTED'||failed.has(task.id)?'FAILED':taskExpired||campaignExpired?'EXPIRED':notStarted?'NOT_STARTED':task.platform==='TELEGRAM'&&!linked?'CONNECTION_REQUIRED':task.platform==='TELEGRAM'?'VERIFICATION_PENDING':'NOT_STARTED';
+   const userStatus=previous?.status==='APPROVED'?'COMPLETED':previous?.status==='PENDING'?'PENDING':previous?.status==='REJECTED'||failed.has(task.id)?'FAILED':taskExpired||campaignExpired?'EXPIRED':notStarted?'NOT_STARTED':task.platform==='TELEGRAM'&&(!linked||!telegramUserId(linked.providerAccountId))?'CONNECTION_REQUIRED':task.platform==='TELEGRAM'?'VERIFICATION_PENDING':'NOT_STARTED';
    result.push({...task,...(rewardQuota?{rewardQuota}:{}),repeatable:false,available:!notStarted&&!taskExpired&&!campaignExpired,userStatus,history:previous?{status:previous.status,reward:previous.reward}:null});
   }
   return result;
@@ -347,7 +348,7 @@ export class EngineService {
   const c=task.campaign,now=new Date();
   if(task.startsAt&&task.startsAt>now||task.endsAt&&task.endsAt<=now||task.archivedAt||c.archivedAt||c.networkId!==network.id||c.status!=='ACTIVE'||c.startsAt&&c.startsAt>now||c.endsAt&&c.endsAt<=now)throw new ConflictException('Telegram membership task is not available');
   const identity=await this.data.db.socialAccount.findUnique({where:{userId_provider:{userId,provider:'TELEGRAM'}}});
-  if(!identity||!/^[0-9]{1,24}$/.test(identity.providerAccountId))throw new ConflictException('Link your Telegram account in the user dashboard before verification');
+  if(!identity||!telegramUserId(identity.providerAccountId))throw new ConflictException('Link your Telegram account in the user dashboard before verification');
   const {account,token}=await this.assertTelegramTaskReady(task.officialAccountId);
   if(!account.accountId)throw new ServiceUnavailableException('Telegram channel or group ID is not configured');
   // Persist the attempt before the external call. Even failed/in-flight verification is history.
