@@ -1,9 +1,9 @@
-import {T} from "./i18n";
+import SiteHeader from './site-header';
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import './style.css';
-import { RuntimeProvider, DynamicBrand, DynamicFooter } from './runtime';
-import { LocaleProvider, LanguageSwitcher } from './i18n';
+import { RuntimeProvider, DynamicFooter } from './runtime';
+import { LocaleProvider } from './i18n';
 import { serverConfig } from './server-config';
 export async function generateMetadata(): Promise<Metadata> {
     const config = await serverConfig(), b = config?.branding;
@@ -15,5 +15,5 @@ export default async function RootLayout({ children }: {
     children: React.ReactNode;
 }) {
     const config = await serverConfig(), h = await headers(), requested = h.get('x-rewards-locale'), language = (requested === 'en' || requested === 'tr' ? requested : config?.branding.defaultLanguage === 'en' ? 'en' : 'tr') as 'en' | 'tr';
-    return <html lang={language}><body><RuntimeProvider initialConfig={config}><LocaleProvider language={language}><header><a href={'/' + language} className="brand"><DynamicBrand /></a><nav><a href={'/' + language + '/dashboard'}><T value="Kontrol paneli"/></a><a href={'/' + language + '/admin'}><T value="Yönetim"/></a><LanguageSwitcher /></nav></header>{children}<footer><DynamicFooter /></footer></LocaleProvider></RuntimeProvider></body></html>;
+    return <html lang={language}><body><RuntimeProvider initialConfig={config}><LocaleProvider language={language}><SiteHeader/>{children}<footer><DynamicFooter /></footer></LocaleProvider></RuntimeProvider></body></html>;
 }

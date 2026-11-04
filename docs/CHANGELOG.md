@@ -1,3 +1,7 @@
+# v0.5.2 aday frontend düzeltmesi
+
+Mobil MetaMask dapp yönlendirmesi, anlık TR/EN ve reduced-motion GIF görünürlüğü. Backend/DB/kontrat değişikliği yok. Ayrıntılar: [MOBILE_WALLET_LOCALE_HERO_FIX.md](MOBILE_WALLET_LOCALE_HERO_FIX.md). Yayın sonucu runtime kanıtıyla doğrulanmalıdır.
+
 # Sürüm ve dosya değişiklik geçmişi
 
 ## v0.5.1 — Admin arayüzü, 4Kasım2026
