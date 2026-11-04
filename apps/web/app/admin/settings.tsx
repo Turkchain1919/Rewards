@@ -1,5 +1,6 @@
 'use client';
-import {T} from "../i18n";
+import {uiError} from './ui';
+import {T,useLanguage} from "../i18n";
 import { useEffect, useState } from 'react';
 type Row = Record<string, unknown>;
 type Network = {
@@ -37,9 +38,10 @@ const brandFields: [
 export default function AdminSettings({ section,focusGroup }: {
     section: string;focusGroup?:string;
 }) {
+    const language=useLanguage();
     const [networks, setNetworks] = useState<Network[]>([]), [form, setForm] = useState<Row | null>(null), [edit, setEdit] = useState<Network | null>(null), [error, setError] = useState(''), [message, setMessage] = useState(''), [busy, setBusy] = useState(false), [details, setDetails] = useState<unknown>(null), [history, setHistory] = useState<Row[]>([]), [credentials, setCredentials] = useState<Row[]>([]);
     async function api(path: string, method = 'GET', body?: unknown) { const r = await fetch('/api/admin/settings/' + path, { method, headers: { 'Content-Type': 'application/json' }, body: body === undefined ? undefined : JSON.stringify(body) }); const d = await r.json(); if (!r.ok)
-        throw new Error(d.message || 'İşlem tamamlanamadı'); return d; }
+        throw new Error(uiError(d.message || 'İşlem tamamlanamadı',language)); return d; }
     async function load() { setError(''); try {
         setNetworks(await api('blockchains'));
         if (section === 'branding')
