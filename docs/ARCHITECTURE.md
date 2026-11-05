@@ -1,3 +1,7 @@
+# v0.5.5 kullanıcı arayüzü
+
+Dashboard ortak UserHub bileşenine geçti. Platform kartları → mevcut sosyal hesap API'leri → gerçek görev yapılandırması → mevcut doğrulama → mevcut atomik ledger akışı korunur. UI durumu fragment/sessionStorage ile saklanır; güvenlik ve ekonomik kararlar backend'dedir. Bakiye özeti birbirini dışlayan AVAILABLE/RESERVED/CLAIMED toplamıdır; PENDING dahil değildir. Ayrıntı: [USER_DASHBOARD_STRUCTURE.md](USER_DASHBOARD_STRUCTURE.md).
+
 # Sistem mimarisi — Turkchain® Rewards
 
 ## v0.5.1 — Admin arayüzü, 4Kasım2026

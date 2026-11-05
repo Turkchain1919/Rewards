@@ -1,3 +1,7 @@
+# v0.5.5
+
+Kullanıcı merkezinde platform kartları, ayrı geçmiş/ledger/hesap sekmeleri ve üç aşamalı görev akışı. Bağlantı kaldırma onayı, hassas ödül özeti ve Telegram alternatif bağlantı açıklamaları. Backend yalnız history platform projectionı; migration/ödül/auth değişmez. Bkz USER_DASHBOARD_STRUCTURE.md.
+
 # v0.5.4
 
 Kullanıcıdetaylarında kayıtlıcüzdan/geçerlicit eoturumu/Telegrambağı/üyelikdurumu ayrıldı. Saltokumaüyelikkontrolü ve güvenliprojection/RBAC testleri eklendi. Backendödül/auth/şema aynı; bkz ADMIN_USER_CONNECTION_DETAILS.md.

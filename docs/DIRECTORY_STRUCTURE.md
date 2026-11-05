@@ -1,3 +1,7 @@
+# v0.5.5 ekleri
+
+`apps/web/app/dashboard/hub.tsx`, `hub-model.ts`, `hub.css`: kullanıcı merkezinin görünümü, saf durum hesaplamaları ve scoped CSS. `tests/user-hub.test.ts` ve `tests/browser-user-hub.e2e.mts`: yeni testler. Ayrıntılı işlev haritası [USER_DASHBOARD_STRUCTURE.md](USER_DASHBOARD_STRUCTURE.md).
+
 # Klasör ve dosya haritası
 
 ## v0.5.1 — Admin arayüzü, 4Kasım2026

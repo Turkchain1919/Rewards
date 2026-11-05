@@ -1,3 +1,7 @@
+# v0.5.5 — Kullanıcı sosyal ödül merkezi
+
+Önce [USER_DASHBOARD_STRUCTURE.md](USER_DASHBOARD_STRUCTURE.md) okuyun. Taban v0.5.4 b3f49f0; mevcut admin, sekiz entegrasyon ve ödül motoru korunur. Yeni sekmeler, platform kartları ve üç aşamalı görev sihirbazı; history API projectionına platform eklendi, migration yok. Telegram gerçek sağlayıcı QR ekranı test edildi; fiziksel Desktop geçişi ve gerçek kullanıcı onayı/callback henüz doğrulanmadı. Kesin kök neden kanıtlanmadan çözülmüş kabul edilmez. Yayın durumu production `.runtime/deployment.json`, current symlink ve Git ile doğrulanmalıdır. Kanıt: .runtime/user-hub-v055/. Claims kapalı.
+
 # v0.5.2 aday frontend düzeltmesi
 
 Mobil MetaMask dapp yönlendirmesi, anlık TR/EN ve reduced-motion GIF görünürlüğü. Backend/DB/kontrat değişikliği yok. Ayrıntılar: [MOBILE_WALLET_LOCALE_HERO_FIX.md](MOBILE_WALLET_LOCALE_HERO_FIX.md). Yayın sonucu runtime kanıtıyla doğrulanmalıdır.

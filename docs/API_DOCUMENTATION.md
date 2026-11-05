@@ -1,3 +1,7 @@
+# v0.5.5 — Geriye uyumlu history alanı
+
+`GET /api/me/history` mevcut kullanıcı oturumu ve seçili ağ kontrolünü korur. `task` nesnesi artık `{ title, platform }` döndürür; önceki title ve diğer alanlar aynıdır. Yeni endpoint, body, yetki veya muhasebe değişikliği yoktur. İstemci mevcut social/connect, disconnect, refresh, challenge, verify-telegram, verify, submit, ledger ve claims endpointlerini kullanır.
+
 # v0.5.4 Kullanıcı bağlantı API ekleri
 
 GET `/api/admin/users/:id/connection-details`; POST `/api/admin/users/:id/telegram-membership-check` body`{targetId}`. İkisiOWNER/ADMIN+MFA; POSTOrigin/rate30/15dk; sonkontrol sadeceokur ve auditlog yazar, ödülvermez. AyrıntılıDTO/durum/sınırlar: [ADMIN_USER_CONNECTION_DETAILS.md](ADMIN_USER_CONNECTION_DETAILS.md).
