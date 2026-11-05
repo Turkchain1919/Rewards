@@ -1,3 +1,7 @@
+# Admin alan rehberi ekleri
+
+Rehber, kopyalama ve yerel webhook secret üretimi yeni endpoint kullanmaz. Mevcut form alanları/payloadlar ve OWNER/MFA kuralları aynıdır. Yeni anahtar/tokenu otomatik oluşturan veya kaydedilmiş secret döndüren API eklenmedi.
+
 # v0.5.5 — Geriye uyumlu history alanı
 
 `GET /api/me/history` mevcut kullanıcı oturumu ve seçili ağ kontrolünü korur. `task` nesnesi artık `{ title, platform }` döndürür; önceki title ve diğer alanlar aynıdır. Yeni endpoint, body, yetki veya muhasebe değişikliği yoktur. İstemci mevcut social/connect, disconnect, refresh, challenge, verify-telegram, verify, submit, ledger ve claims endpointlerini kullanır.

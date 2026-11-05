@@ -79,3 +79,7 @@ Production yayını ancak testler ve yedek/restore/parmak izi kontrolleri tamaml
 - Gerçek Telegram kullanıcı onayı/callback ve fiziksel Desktop açılışı test edilmedi.
 - Yeni hub Chromium, Firefox ve WebKit: her biri TR/EN ve1440/820/390 için6/6 senaryo başarılı. İlk Firefox denemesi testin401 tamamlanmasını beklememesi/geri gezinme zamanlaması nedeniyle başarısız oldu; gerçek401 ve URL geri dönüşü beklenerek tekrar geçti.
 - Tam test-all sonrasında iki küçük UI koruması eklendi: kesirli adımın tam sayıya normalize edilmesi ve eski kazanımın task.history projectionından gösterilmesi. Ardından final kaynakla TypeScript/lint,63 uygulama testi, build ve üç engine panel testleri tekrar geçti. Değişmeyen API/kontrat/admin kaynakları için önceki tam paket kanıtı korunur.
+
+### Kapanış kontrolü: tamamlanan görev sayacı
+
+Karttaki tamamlanan sayısı yalnız son100 history satırına bağlı değildir; listelenen görevlerin sunucudan gelen REWARDED durumu kullanılır. Böylece task.history ile tamamlanmış görünen eski görev, history sayfasının dışında kalsa da kart sayacında sayılır. Bu değişiklik ledger veya API sorgusunu değiştirmez. Önceki hata `completed-counter-first-check.log` içinde fixture ile gösterilmiştir.

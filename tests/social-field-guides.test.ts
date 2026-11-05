@@ -1,0 +1,13 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import {socialFieldPlatforms,getSocialFieldGuide,canGenerateWebhookSecret,generateWebhookSecret} from '../apps/web/app/admin/social-field-guides';
+test('all existing social connectors have bilingual field guidance and static official HTTPS sources',()=>{
+ const allowed=new Set(['x.com','developer.x.com','docs.x.com','console.cloud.google.com','developers.google.com','support.google.com','www.youtube.com','developers.facebook.com','www.instagram.com','t.me','core.telegram.org','web.telegram.org','www.facebook.com','kick.com','github.com','dev.twitch.tv','www.twitch.tv','developers.tiktok.com','www.tiktok.com','discord.com','docs.discord.com','docs.github.com']);
+ assert.equal(Object.keys(socialFieldPlatforms).length,10);
+ for(const p of Object.keys(socialFieldPlatforms))for(const f of ['clientId','clientSecret','apiKey','apiSecret','accessToken','refreshToken','bearerToken','botToken','webhookSecret','pageAccessToken','redirectUri','webhookUrl','requestedScopes','accountId','username','profileUrl','targetObjectId','targetUrl']){
+  const g=getSocialFieldGuide(p,f);assert.ok(g.summary.tr.length>10&&g.summary.en.length>10);assert.ok(g.steps.length);for(const value of [g.source,g.docs]){assert.ok(value);const url=new URL(value!);assert.equal(url.protocol,'https:');assert.ok(allowed.has(url.hostname),url.hostname);assert.equal(url.username,'');assert.equal(url.password,'');assert.equal(url.search,'');}
+ }
+ assert.equal(getSocialFieldGuide('CUSTOM','clientSecret').source,null);assert.match(getSocialFieldGuide('YOUTUBE','apiSecret').summary.en,/not used/);assert.match(getSocialFieldGuide('X','botToken').summary.en,/not used/);
+});
+test('platform identity guidance distinguishes Telegram sign, professional media IDs and scoped TikTok identity',()=>{assert.match(getSocialFieldGuide('TELEGRAM','accountId').summary.tr,/-1003676977941/);assert.match(getSocialFieldGuide('INSTAGRAM','targetObjectId').summary.en,/shortcode/);assert.match(getSocialFieldGuide('TIKTOK','accountId').summary.en,/open_id/);assert.match(getSocialFieldGuide('YOUTUBE','accountId').summary.en,/UC/);});
+test('local generation is restricted to operator-defined webhook secrets and uses secure random bytes',()=>{for(const p of Object.keys(socialFieldPlatforms)){for(const f of ['clientSecret','apiKey','botToken','accessToken','refreshToken'])assert.equal(canGenerateWebhookSecret(p,f),false);assert.equal(canGenerateWebhookSecret(p,'webhookSecret'),['TELEGRAM','FACEBOOK','INSTAGRAM','TWITCH'].includes(p));}const a=generateWebhookSecret(),b=generateWebhookSecret();assert.match(a,/^[a-f0-9]{64}$/);assert.notEqual(a,b);});

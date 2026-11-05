@@ -1,3 +1,7 @@
+# v0.5.5 — Son UI ekleri
+
+Admin sosyal alan rehberleri, resmî panel linkleri, public callback kopyası, maskeli yeni webhook secret adayının güvenli üretim/kopyası; gelişmiş credential scope açıklamaları. Platform tamamlanan sayacı eski history sayfasına bağlı kalmadan REWARDED görev durumunu kullanır. API/şema/ledger aynı.
+
 # v0.5.5
 
 Kullanıcı merkezinde platform kartları, ayrı geçmiş/ledger/hesap sekmeleri ve üç aşamalı görev akışı. Bağlantı kaldırma onayı, hassas ödül özeti ve Telegram alternatif bağlantı açıklamaları. Backend yalnız history platform projectionı; migration/ödül/auth değişmez. Bkz USER_DASHBOARD_STRUCTURE.md.

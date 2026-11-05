@@ -25,6 +25,8 @@ PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx --tscon
 PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" timeout 90s node_modules/.bin/tsx --tsconfig apps/api/tsconfig.json tests/browser-walletconnect.e2e.mts
 PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx --tsconfig apps/api/tsconfig.json tests/browser-admin-user-details.e2e.mts
 PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx tests/browser-user-hub.e2e.mts
+PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx tests/browser-user-hub-history.e2e.mts
+PLAYWRIGHT_BROWSERS_PATH="$TEST/.runtime/browsers" node_modules/.bin/tsx tests/browser-admin-field-help.e2e.mts
 (cd packages/contracts && forge test -vv)
 npm audit --omit=dev --audit-level=high
 npx prisma migrate status

@@ -1,3 +1,7 @@
+# Admin alan rehberi ekleri
+
+`apps/web/app/admin/social-field-guides.ts`: statik/bilingual kaynak ve credential alan listesi. `social-field-help.tsx`: paylaşılan not/bağlantı/yerel yardımcı UI. Ana API, hesap, dinamik/klasik görev ve gelişmiş settings formlarına bağlanır. [ADMIN_SOCIAL_FIELD_GUIDE.md](ADMIN_SOCIAL_FIELD_GUIDE.md) gerçek yol ve kaynakları açıklar. Yeni testler: `tests/social-field-guides.test.ts`, `tests/browser-admin-field-help.e2e.mts`, `tests/browser-user-hub-history.e2e.mts`.
+
 # v0.5.5 ekleri
 
 `apps/web/app/dashboard/hub.tsx`, `hub-model.ts`, `hub.css`: kullanıcı merkezinin görünümü, saf durum hesaplamaları ve scoped CSS. `tests/user-hub.test.ts` ve `tests/browser-user-hub.e2e.mts`: yeni testler. Ayrıntılı işlev haritası [USER_DASHBOARD_STRUCTURE.md](USER_DASHBOARD_STRUCTURE.md).

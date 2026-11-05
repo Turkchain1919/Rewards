@@ -1,3 +1,7 @@
+# v0.5.5 ek admin alan rehberleri
+
+[ADMIN_SOCIAL_FIELD_GUIDE.md](ADMIN_SOCIAL_FIELD_GUIDE.md): bütün mevcut sosyal formlarda nereden alınır açıklaması ve resmî bağlantılar; yalnız yeni yerel webhook secret adayı için üretim/kopya, public callback kopyası. Backend/şema/OAuth/MFA/ledger değişmez; gerçek anahtarlar raporlanmaz.
+
 # v0.5.5 — Kullanıcı sosyal ödül merkezi
 
 Önce [USER_DASHBOARD_STRUCTURE.md](USER_DASHBOARD_STRUCTURE.md) okuyun. Taban v0.5.4 b3f49f0; mevcut admin, sekiz entegrasyon ve ödül motoru korunur. Yeni sekmeler, platform kartları ve üç aşamalı görev sihirbazı; history API projectionına platform eklendi, migration yok. Telegram gerçek sağlayıcı QR ekranı test edildi; fiziksel Desktop geçişi ve gerçek kullanıcı onayı/callback henüz doğrulanmadı. Kesin kök neden kanıtlanmadan çözülmüş kabul edilmez. Yayın durumu production `.runtime/deployment.json`, current symlink ve Git ile doğrulanmalıdır. Kanıt: .runtime/user-hub-v055/. Claims kapalı.

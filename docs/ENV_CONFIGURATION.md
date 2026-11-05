@@ -1,3 +1,7 @@
+# WalletConnect Project ID alanı
+
+Etkin ağın `config.walletConnectProjectId` değeri önceliklidir. Boşsa `WALLETCONNECT_PROJECT_ID`, ardından legacy `BLOCKCHAIN_WALLETCONNECT_PROJECT_ID` kullanılır (`configuration.ts`). Public project kimliği kod deposuna sabitlenmez. Kullanıcının verdiği değer production DB ve etkin configte zaten eşleşiyordu; production değiştirilmedi. TEST boş kaydı yalnız bu JSON alanı/version ve audit ile güncellendi. Claims/transfer ayarları korunur. [Reown Dashboard](https://dashboard.reown.com/) ve [resmî belge](https://docs.reown.com/cloud/relay) alan altında gösterilir.
+
 # ENV ve konfigürasyon sözlüğü
 
 ## Canlı envanter düzeltmesi — 3 Kasım 2026, yayın sonrası doğrulama

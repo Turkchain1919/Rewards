@@ -1,6 +1,10 @@
+# v0.5.5 — Admin sosyal alan rehberleri ve kapanış sayaç düzeltmesi
+
+Kullanıcı merkezine ek olarak admin sosyal API/hesap/görev hedefi alanları için [ADMIN_SOCIAL_FIELD_GUIDE.md](ADMIN_SOCIAL_FIELD_GUIDE.md) okuyun.8 ana ve2 mevcut legacy connector formunda resmî kaynaklar, TR/EN açıklamalar, public adres kopyası ve yalnız yeni webhook secret adayı için güvenli yerel üretim/kopya vardır. Mevcut keyler okunmaz/değiştirilmez; backend/şema/OAuth/MFA/ledger aynı. Sayaç listelenen görevin sunucudaki REWARDED durumunu sayar. İlk kullanıcı merkezi yayını f7409a2; son aktif SHA production manifest/current/GitHub ile doğrulanır. Genel kanıt .runtime/user-hub-v055/, son UI ekleri .runtime/user-hub-count-v055/.
+
 # v0.5.5 — Kullanıcı sosyal ödül merkezi
 
-Önce [USER_DASHBOARD_STRUCTURE.md](USER_DASHBOARD_STRUCTURE.md) okuyun. Taban v0.5.4 b3f49f0; mevcut admin, sekiz entegrasyon ve ödül motoru korunur. Yeni sekmeler, platform kartları ve üç aşamalı görev sihirbazı; history API projectionına platform eklendi, migration yok. Telegram gerçek sağlayıcı QR ekranı test edildi; fiziksel Desktop geçişi ve gerçek kullanıcı onayı/callback henüz doğrulanmadı. Kesin kök neden kanıtlanmadan çözülmüş kabul edilmez. Yayın durumu production `.runtime/deployment.json`, current symlink ve Git ile doğrulanmalıdır. Kanıt: .runtime/user-hub-v055/. Claims kapalı.
+Önce [USER_DASHBOARD_STRUCTURE.md](USER_DASHBOARD_STRUCTURE.md) okuyun. Taban v0.5.4 b3f49f0; mevcut admin, sekiz entegrasyon ve ödül motoru korunur. Yeni sekmeler, platform kartları ve üç aşamalı görev sihirbazı; history API projectionına platform eklendi, migration yok. Telegram gerçek sağlayıcı QR ekranı test edildi; fiziksel Desktop geçişi ve gerçek kullanıcı onayı/callback henüz doğrulanmadı. Kesin kök neden kanıtlanmadan çözülmüş kabul edilmez. Yayın durumu production `.runtime/deployment.json`, current symlink ve Git ile doğrulanmalıdır. Genel kanıt: .runtime/user-hub-v055/. Son tamamlanan görev sayacı düzeltmesinin yayın kanıtı: .runtime/user-hub-count-v055/. Claims kapalı.
 
 # v0.5.4 Kullanıcı bağlantı detayları
 
